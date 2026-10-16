@@ -9,6 +9,7 @@ import 'bill_message.dart';
 import 'receipt.dart';
 import 'report_export.dart';
 import 'settings_page.dart';
+import 'package:share_plus/share_plus.dart';
 
 class PosPage extends StatefulWidget {
   final CafeStore store;
@@ -313,24 +314,184 @@ class _PosPageState extends State<PosPage> {
           }
         }
       });
-      String delivery = 'Order saved.';
       if (method != null) {
         final savedOrder = widget.store.data.order(savedId!);
+        Uint8List? pdfBytes;
         try {
-          final pdfBytes = await buildReceipt(savedOrder, widget.store.data.businessName, selectedTemplate);
-          if (mounted) {
-            await exportFile(context, pdfBytes, '${savedOrder.id}-receipt.pdf', 'application/pdf');
-          }
-        } catch (_) {}
-        try {
-          await openWhatsAppMessage(
+          pdfBytes = await buildReceipt(
             savedOrder,
             widget.store.data.businessName,
-            selectedTemplate: selectedTemplate,
+            selectedTemplate,
           );
-          delivery = 'Payment saved via $method. Selected template sent as PDF & WhatsApp bill opened.';
-        } catch (_) {
-          delivery = 'Payment saved via $method. PDF invoice generated.';
+        } catch (_) {}
+
+        if (mounted && pdfBytes != null) {
+          // Immediately trigger direct PDF file share via SharePlus (shares actual .pdf document to WhatsApp)
+          final file = XFile.fromData(
+            pdfBytes,
+            name: '${savedOrder.id}-receipt.pdf',
+            mimeType: 'application/pdf',
+          );
+          final box = context.findRenderObject() as RenderBox?;
+          try {
+            await SharePlus.instance.share(
+              ShareParams(
+                files: [file],
+                fileNameOverrides: ['${savedOrder.id}-receipt.pdf'],
+                sharePositionOrigin: box == null
+                    ? null
+                    : box.localToGlobal(Offset.zero) & box.size,
+              ),
+            );
+          } catch (_) {}
+        }
+
+        if (mounted) {
+          setState(() {
+            dirty = false;
+            saving = false;
+          });
+          await showDialog<void>(
+            context: context,
+            barrierDismissible: false,
+            builder: (ctx) => AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: Row(
+                children: [
+                  const Icon(Icons.check_circle, color: Color(0xFF16A34A), size: 28),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Order #${savedOrder.id} Saved', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        Text('Payment received: ${money(savedOrder.total)} via $method', style: const TextStyle(fontSize: 12, color: muted)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              content: SizedBox(
+                width: 380,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0FDF4),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFBBF7D0)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.picture_as_pdf, color: Color(0xFF16A34A), size: 24),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('${pdfTemplates[selectedTemplate].name} (PDF)', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF14532D))),
+                                Text('Recipient: ${savedOrder.customer} (+91 ${savedOrder.phone})', style: const TextStyle(fontSize: 11.5, color: Color(0xFF166534))),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: const Color(0xFF16A34A),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: () async {
+                          if (pdfBytes != null) {
+                            final file = XFile.fromData(
+                              pdfBytes,
+                              name: '${savedOrder.id}-receipt.pdf',
+                              mimeType: 'application/pdf',
+                            );
+                            final renderBox = ctx.findRenderObject() as RenderBox?;
+                            await SharePlus.instance.share(
+                              ShareParams(
+                                files: [file],
+                                fileNameOverrides: ['${savedOrder.id}-receipt.pdf'],
+                                sharePositionOrigin: renderBox == null
+                                    ? null
+                                    : renderBox.localToGlobal(Offset.zero) & renderBox.size,
+                              ),
+                            );
+                          }
+                        },
+                        icon: const Icon(Icons.share, size: 18),
+                        label: const Text(
+                          'Share PDF File to WhatsApp',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: () => openWhatsAppMessage(
+                          savedOrder,
+                          widget.store.data.businessName,
+                          selectedTemplate: selectedTemplate,
+                        ),
+                        icon: const Icon(Icons.chat_bubble_outline, size: 18, color: Color(0xFF16A34A)),
+                        label: Text(
+                          'Open WhatsApp Chat (+91 ${savedOrder.phone})',
+                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextButton.icon(
+                            onPressed: pdfBytes == null
+                                ? null
+                                : () => exportFile(ctx, pdfBytes!, '${savedOrder.id}-receipt.pdf', 'application/pdf'),
+                            icon: const Icon(Icons.download, size: 16),
+                            label: const Text('Download PDF', style: TextStyle(fontSize: 12)),
+                          ),
+                        ),
+                        Expanded(
+                          child: TextButton.icon(
+                            onPressed: () => exportReceipt(savedOrder, widget.store.data.businessName, selectedTemplate),
+                            icon: const Icon(Icons.print, size: 16),
+                            label: const Text('Print Receipt', style: TextStyle(fontSize: 12)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                FilledButton(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Done'),
+                ),
+              ],
+            ),
+          );
+          return;
         }
       }
       if (mounted) {
@@ -339,10 +500,7 @@ class _PosPageState extends State<PosPage> {
           saving = false;
         });
         Navigator.pop(context);
-        toast(
-          context,
-          method == null ? 'Order saved. Payment is pending.' : delivery,
-        );
+        toast(context, 'Order saved. Payment is pending.');
       }
     } catch (error) {
       if (mounted) {
