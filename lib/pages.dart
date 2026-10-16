@@ -559,9 +559,7 @@ Future<void> showOrderActionBottomSheet(
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
-                    order.service == 'Dine-in'
-                        ? Icons.table_restaurant_outlined
-                        : Icons.takeout_dining_outlined,
+                    Icons.receipt_long_outlined,
                     color: primary,
                     size: 22,
                   ),
@@ -784,10 +782,8 @@ class OrderTile extends StatelessWidget {
                   color: isSelected ? primary.withValues(alpha: .12) : canvas,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(
-                  order.service == 'Dine-in'
-                      ? Icons.table_restaurant_outlined
-                      : Icons.takeout_dining_outlined,
+                child: const Icon(
+                  Icons.receipt_long_outlined,
                   color: green,
                   size: 20,
                 ),
@@ -812,7 +808,7 @@ class OrderTile extends StatelessWidget {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      '${shortDate(order.createdAt)} · ${clockTime(order.createdAt)} · ${stageLabel(order.stage)}',
+                      '${shortDate(order.createdAt)} · ${clockTime(order.createdAt)}',
                       style: const TextStyle(fontSize: 10, color: muted),
                     ),
                   ],
@@ -1371,8 +1367,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                               paymentLabel(order.payment),
                               color: paymentColor(order.payment),
                             ),
-                            Pill(stageLabel(order.stage)),
-                            Pill(order.service),
                             if (order.table.isNotEmpty)
                               Pill('Table ${order.table}'),
                           ],
