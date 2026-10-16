@@ -15,12 +15,14 @@ class OverviewPage extends StatefulWidget {
   final CafeStore store;
   final VoidCallback onNew;
   final VoidCallback onOrders;
+  final VoidCallback? onSettings;
   final ValueChanged<CafeOrder> onOrder;
   const OverviewPage({
     super.key,
     required this.store,
     required this.onNew,
     required this.onOrders,
+    this.onSettings,
     required this.onOrder,
   });
 
@@ -87,7 +89,69 @@ class _OverviewPageState extends State<OverviewPage> {
           onChanged: (f) => setState(() => _dateFilter = f),
           includeAllTime: true,
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 14),
+        ValueListenableBuilder<int>(
+          valueListenable: pdfTemplateNotifier,
+          builder: (context, currentTemplate, _) {
+            final tName = switch (currentTemplate) {
+              1 => 'Executive Modern (A5)',
+              2 => 'Itemized Breakdown (Detailed)',
+              _ => 'Thermal Receipt (80mm)',
+            };
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: border),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(7),
+                    decoration: BoxDecoration(
+                      color: getActiveThemePrimary().withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(Icons.picture_as_pdf_outlined, color: getActiveThemePrimary(), size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Text(
+                              'Invoice PDF Template: ',
+                              style: TextStyle(fontSize: 12.5, color: muted),
+                            ),
+                            Text(
+                              tName,
+                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: ink),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        const Text(
+                          'Used for WhatsApp customer bills & thermal receipt printers.',
+                          style: TextStyle(fontSize: 11, color: muted),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (widget.onSettings != null)
+                    TextButton.icon(
+                      onPressed: widget.onSettings,
+                      icon: const Icon(Icons.settings_outlined, size: 15),
+                      label: const Text('Settings', style: TextStyle(fontSize: 12)),
+                    ),
+                ],
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: 20),
         StatGrid(
           children: [
             StatCard(

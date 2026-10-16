@@ -409,6 +409,7 @@ class _WorkspaceState extends State<Workspace> {
             store: widget.store,
             onNew: () => openPos(),
             onOrders: () => select(1),
+            onSettings: () => select(5),
             onOrder: (o) => Navigator.push(
               context,
               MaterialPageRoute<void>(

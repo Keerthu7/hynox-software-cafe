@@ -6,6 +6,9 @@ import 'store.dart';
 import 'ui.dart';
 import 'billing_extras.dart';
 import 'bill_message.dart';
+import 'receipt.dart';
+import 'report_export.dart';
+import 'settings_page.dart';
 
 class PosPage extends StatefulWidget {
   final CafeStore store;
@@ -29,6 +32,7 @@ class _PosPageState extends State<PosPage> {
   bool saving = false;
   bool dirty = false;
   int discount = 0;
+  late int selectedTemplate;
   int get subtotal => cart.values.fold(0, (sum, line) => sum + line.total);
   int get taxRate =>
       widget.existing?.taxBasisPoints ??
@@ -41,6 +45,7 @@ class _PosPageState extends State<PosPage> {
   @override
   void initState() {
     super.initState();
+    selectedTemplate = pdfTemplateNotifier.value.clamp(0, pdfTemplates.length - 1);
     final old = widget.existing;
     if (old != null) {
       for (final line in old.lines) {
@@ -127,6 +132,114 @@ class _PosPageState extends State<PosPage> {
     }
   }
 
+  Future<void> proceedWithWhatsAppBill() async {
+    if (cart.isEmpty) {
+      toast(context, 'Please add menu items to the order first.');
+      return;
+    }
+    final nameVal = customer.text.trim();
+    final phoneVal = phone.text.trim();
+    if (nameVal.isEmpty || !RegExp(r'^\d{10}$').hasMatch(phoneVal)) {
+      final filled = await showDialog<bool>(
+        context: context,
+        builder: (ctx) {
+          final nameCtrl = TextEditingController(text: customer.text);
+          final phoneCtrl = TextEditingController(text: phone.text);
+          String? localErr;
+          return StatefulBuilder(
+            builder: (ctx, setDlgState) => AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+              title: const Row(
+                children: [
+                  Icon(Icons.chat_bubble_outline, color: Color(0xFF16A34A), size: 24),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Customer WhatsApp Details',
+                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ],
+              ),
+              content: SizedBox(
+                width: 360,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Enter customer details to send the bill and selected PDF receipt to WhatsApp.',
+                      style: TextStyle(fontSize: 12.5, color: muted, height: 1.4),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: nameCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Customer Name *',
+                        prefixIcon: Icon(Icons.person_outline, size: 20),
+                        isDense: true,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: phoneCtrl,
+                      keyboardType: TextInputType.phone,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(10),
+                      ],
+                      decoration: const InputDecoration(
+                        labelText: '10-digit WhatsApp Number *',
+                        prefixText: '+91 ',
+                        prefixIcon: Icon(Icons.phone_outlined, size: 20),
+                        isDense: true,
+                      ),
+                    ),
+                    if (localErr != null) ...[
+                      const SizedBox(height: 10),
+                      Text(localErr!, style: const TextStyle(color: Colors.red, fontSize: 12)),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF16A34A),
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () {
+                    final n = nameCtrl.text.trim();
+                    final p = phoneCtrl.text.trim();
+                    if (n.isEmpty) {
+                      setDlgState(() => localErr = 'Customer name is required.');
+                      return;
+                    }
+                    if (!RegExp(r'^\d{10}$').hasMatch(p)) {
+                      setDlgState(() => localErr = 'Enter a valid 10-digit WhatsApp number.');
+                      return;
+                    }
+                    customer.text = n;
+                    phone.text = p;
+                    Navigator.pop(ctx, true);
+                  },
+                  icon: const Icon(Icons.check, size: 18),
+                  label: const Text('Continue to Payment'),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+      if (filled != true) return;
+    }
+    await save(pay: true);
+  }
+
   Future<void> save({required bool pay}) async {
     if (cart.isEmpty || saving) {
       return;
@@ -204,10 +317,20 @@ class _PosPageState extends State<PosPage> {
       if (method != null) {
         final savedOrder = widget.store.data.order(savedId!);
         try {
-          await openWhatsAppMessage(savedOrder, widget.store.data.businessName);
-          delivery = 'Payment saved via $method. WhatsApp bill opened.';
+          final pdfBytes = await buildReceipt(savedOrder, widget.store.data.businessName, selectedTemplate);
+          if (mounted) {
+            await exportFile(context, pdfBytes, '${savedOrder.id}-receipt.pdf', 'application/pdf');
+          }
+        } catch (_) {}
+        try {
+          await openWhatsAppMessage(
+            savedOrder,
+            widget.store.data.businessName,
+            selectedTemplate: selectedTemplate,
+          );
+          delivery = 'Payment saved via $method. Selected template sent as PDF & WhatsApp bill opened.';
         } catch (_) {
-          delivery = 'Payment saved via $method.';
+          delivery = 'Payment saved via $method. PDF invoice generated.';
         }
       }
       if (mounted) {
@@ -284,29 +407,139 @@ class _PosPageState extends State<PosPage> {
         children: [
           Row(
             children: [
-              const Expanded(
-                child: Text(
-                  'Menu',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -.6,
+              const Text(
+                'Menu',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -.6,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Container(
+                  height: 36,
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: border),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.picture_as_pdf_outlined, size: 16, color: activePrimary),
+                      const SizedBox(width: 6),
+                      const Text(
+                        'Template: ',
+                        style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: muted),
+                      ),
+                      Expanded(
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<int>(
+                            value: selectedTemplate,
+                            isDense: true,
+                            isExpanded: true,
+                            icon: const Icon(Icons.arrow_drop_down, size: 18),
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: ink),
+                            items: [
+                              for (int i = 0; i < pdfTemplates.length; i++)
+                                DropdownMenuItem<int>(
+                                  value: i,
+                                  child: Text(
+                                    pdfTemplates[i].name,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                            ],
+                            onChanged: (val) {
+                              if (val != null) setState(() => selectedTemplate = val);
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
+              const SizedBox(width: 8),
               OutlinedButton.icon(
                 onPressed: saving ? null : customItem,
-                icon: const Icon(Icons.add, size: 15),
+                icon: const Icon(Icons.add, size: 14),
                 label: const Text(
-                  'Custom item',
+                  'Custom',
                   style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
                 ),
                 style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 10),
+          // Option to proceed to payment via WhatsApp bill directly above menu
+          Material(
+            color: cart.isNotEmpty ? const Color(0xFF16A34A) : Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            elevation: cart.isNotEmpty ? 2 : 0,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: saving ? null : proceedWithWhatsAppBill,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: cart.isNotEmpty ? const Color(0xFF16A34A) : border,
+                  ),
+                  gradient: cart.isNotEmpty
+                      ? const LinearGradient(
+                          colors: [Color(0xFF16A34A), Color(0xFF15803D)],
+                        )
+                      : null,
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: cart.isNotEmpty
+                            ? Colors.white.withValues(alpha: 0.25)
+                            : const Color(0xFF16A34A).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        cart.isNotEmpty ? '$count items · ${money(total)}' : '0 items',
+                        style: TextStyle(
+                          color: cart.isNotEmpty ? Colors.white : const Color(0xFF16A34A),
+                          fontWeight: FontWeight.w800,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        cart.isNotEmpty
+                            ? 'Proceed to payment via WhatsApp bill'
+                            : 'Add items to send WhatsApp bill & PDF receipt',
+                        style: TextStyle(
+                          color: cart.isNotEmpty ? Colors.white : muted,
+                          fontWeight: cart.isNotEmpty ? FontWeight.w700 : FontWeight.w500,
+                          fontSize: 12.5,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Icon(
+                      Icons.arrow_forward_rounded,
+                      size: 16,
+                      color: cart.isNotEmpty ? Colors.white : muted,
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
           const SizedBox(height: 10),
           SizedBox(
@@ -817,16 +1050,60 @@ class _PosPageState extends State<PosPage> {
                 ],
               ),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: canvas,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: border),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.picture_as_pdf_outlined, size: 18, color: activePrimary),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'PDF Template:',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: muted),
+                    ),
+                  ),
+                  DropdownButtonHideUnderline(
+                    child: DropdownButton<int>(
+                      value: selectedTemplate,
+                      isDense: true,
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: ink),
+                      items: [
+                        for (int i = 0; i < pdfTemplates.length; i++)
+                          DropdownMenuItem<int>(
+                            value: i,
+                            child: Text(pdfTemplates[i].name),
+                          ),
+                      ],
+                      onChanged: (val) {
+                        if (val != null) setState(() => selectedTemplate = val);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF16A34A),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
                 onPressed: cart.isEmpty || saving
                     ? null
-                    : () => save(pay: true),
-                icon: const Icon(Icons.check_circle_outline, size: 20),
+                    : proceedWithWhatsAppBill,
+                icon: const Icon(Icons.send_rounded, size: 18),
                 label: Text(
-                  saving ? 'Saving…' : 'Proceed to payment · WhatsApp bill',
+                  saving ? 'Processing…' : 'Proceed to payment · WhatsApp bill',
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
               ),
@@ -987,60 +1264,82 @@ class _PosPageState extends State<PosPage> {
                   Container(
                     padding: const EdgeInsets.fromLTRB(14, 8, 14, 12),
                     color: Colors.white,
-                    child: InkWell(
-                      onTap: () => setState(() => activeTab = 1),
-                      borderRadius: BorderRadius.circular(14),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: activePrimary,
-                          borderRadius: BorderRadius.circular(14),
-                          boxShadow: [
-                            BoxShadow(
-                              color: activePrimary.withValues(alpha: .35),
-                              blurRadius: 10,
-                              offset: const Offset(0, 3),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: InkWell(
+                            onTap: saving ? null : proceedWithWhatsAppBill,
+                            borderRadius: BorderRadius.circular(14),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                               decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: .25),
-                                borderRadius: BorderRadius.circular(8),
+                                color: const Color(0xFF16A34A),
+                                borderRadius: BorderRadius.circular(14),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFF16A34A).withValues(alpha: .35),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ],
                               ),
-                              child: Text(
-                                '$count items',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 11.5,
-                                  fontWeight: FontWeight.w800,
-                                ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withValues(alpha: .25),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      '$count',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    money(total),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  const Row(
+                                    children: [
+                                      Icon(Icons.send_rounded, size: 15, color: Colors.white),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        'WhatsApp Bill →',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 12.5,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
                             ),
-                            const SizedBox(width: 10),
-                            Text(
-                              money(total),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                            const Spacer(),
-                            const Text(
-                              'View Bill →',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          tooltip: 'View detailed order bill',
+                          onPressed: () => setState(() => activeTab = 1),
+                          icon: const Icon(Icons.receipt_long_outlined),
+                          style: IconButton.styleFrom(
+                            backgroundColor: canvas,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
               ],

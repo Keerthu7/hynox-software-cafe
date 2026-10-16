@@ -73,12 +73,12 @@ class _SettingsHubState extends State<SettingsHub> {
   late int _activeTab = widget.initialTab;
 
   final _tabs = const [
+    (title: 'PDF Template', icon: Icons.picture_as_pdf_outlined),
     (title: 'Profile & DP', icon: Icons.account_circle_outlined),
     (title: 'Business Info', icon: Icons.storefront_outlined),
     (title: 'Subscription', icon: Icons.card_membership_outlined),
     (title: 'Team & Security', icon: Icons.shield_outlined),
     (title: 'Color Theme', icon: Icons.palette_outlined),
-    (title: 'PDF Template', icon: Icons.picture_as_pdf_outlined),
   ];
 
   @override
@@ -141,12 +141,12 @@ class _SettingsHubState extends State<SettingsHub> {
         const SizedBox(height: 20),
         // Tab Content
         switch (_activeTab) {
-          0 => _ProfileTab(store: widget.store),
-          1 => _BusinessTab(store: widget.store),
-          2 => _SubscriptionTab(store: widget.store),
-          3 => _TeamTab(store: widget.store),
-          4 => _ThemeTab(),
-          _ => _PdfTemplateTab(),
+          0 => const _PdfTemplateTab(),
+          1 => _ProfileTab(store: widget.store),
+          2 => _BusinessTab(store: widget.store),
+          3 => _SubscriptionTab(store: widget.store),
+          4 => _TeamTab(store: widget.store),
+          _ => const _ThemeTab(),
         },
       ],
     );
