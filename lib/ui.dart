@@ -297,38 +297,49 @@ class PageHeading extends StatelessWidget {
   const PageHeading(this.title, this.subtitle, {super.key, this.action});
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 26),
+    padding: const EdgeInsets.only(bottom: 24),
     child: LayoutBuilder(
       builder: (context, size) {
+        final isSmall = size.maxWidth < 420;
         final heading = Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               title,
-              style: const TextStyle(
-                fontSize: 28,
+              style: TextStyle(
+                fontSize: isSmall ? 22 : 28,
                 fontWeight: FontWeight.w700,
                 color: ink,
                 letterSpacing: -.8,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Text(subtitle, style: const TextStyle(color: muted, height: 1.5)),
           ],
         );
-        if (size.maxWidth < 600) {
+        if (size.maxWidth < 640) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               heading,
-              if (action != null) ...[const SizedBox(height: 16), action!],
+              if (action != null) ...[
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  child: action!,
+                ),
+              ],
             ],
           );
         }
         return Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Expanded(child: heading),
-            ?action,
+            if (action != null) ...[
+              const SizedBox(width: 16),
+              action!,
+            ],
           ],
         );
       },
@@ -404,18 +415,20 @@ class StatGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, size) {
-      final columns = size.maxWidth >= 950
+      final columns = size.maxWidth >= 900
           ? 4
-          : size.maxWidth >= 450
+          : size.maxWidth >= 480
           ? 2
           : 1;
+      const gap = 14.0;
+      final itemWidth = math.max(0.0, (size.maxWidth - (columns - 1) * gap) / columns - 0.2);
       return Wrap(
-        spacing: 16,
-        runSpacing: 16,
+        spacing: gap,
+        runSpacing: gap,
         children: children
             .map(
               (e) => SizedBox(
-                width: (size.maxWidth - (columns - 1) * 16) / columns,
+                width: itemWidth,
                 child: e,
               ),
             )

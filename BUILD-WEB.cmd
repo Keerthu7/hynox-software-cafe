@@ -19,6 +19,12 @@ if exist "work\flutter\bin\flutter.bat" (
     goto :done
 )
 
+if exist "C:\Users\keert\OneDrive\Desktop\flutter\bin\flutter.bat" (
+    echo Building Flutter Web using Desktop Flutter...
+    call "C:\Users\keert\OneDrive\Desktop\flutter\bin\flutter.bat" build web --release
+    goto :done
+)
+
 if exist "C:\Users\keert\Documents\Codex\2026-10-12\hynos-company-work-h-y-n\work\flutter\bin\flutter.bat" (
     echo Building Flutter Web using Codex bundled Flutter...
     call "C:\Users\keert\Documents\Codex\2026-10-12\hynos-company-work-h-y-n\work\flutter\bin\flutter.bat" build web --release

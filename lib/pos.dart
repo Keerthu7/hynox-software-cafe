@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'domain.dart';
@@ -393,15 +394,12 @@ class _PosPageState extends State<PosPage> {
             ),
           LayoutBuilder(
             builder: (context, size) {
-              final columns = size.maxWidth > 800
-                  ? 4
-                  : size.maxWidth > 520
-                  ? 3
-                  : 2;
-              final itemWidth = (size.maxWidth - (columns - 1) * 10) / columns;
+              final columns = (size.maxWidth / 170).floor().clamp(2, 6);
+              const gap = 10.0;
+              final itemWidth = math.max(0.0, (size.maxWidth - (columns - 1) * gap) / columns - 0.2);
               return Wrap(
-                spacing: 10,
-                runSpacing: 10,
+                spacing: gap,
+                runSpacing: gap,
                 children: menu
                     .map(
                       (item) {
@@ -823,11 +821,19 @@ class _PosPageState extends State<PosPage> {
         child: LayoutBuilder(
           builder: (context, size) {
             if (size.maxWidth >= 900) {
+              final cartWidth = (size.maxWidth * 0.32).clamp(360.0, 420.0);
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Expanded(child: menuPanel()),
-                  SizedBox(width: 390, child: cartPanel()),
+                  Expanded(
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 1000),
+                        child: menuPanel(),
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: cartWidth, child: cartPanel()),
                 ],
               );
             }

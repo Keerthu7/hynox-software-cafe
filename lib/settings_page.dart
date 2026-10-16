@@ -1005,28 +1005,47 @@ class _SubscriptionTabState extends State<_SubscriptionTab> {
         LayoutBuilder(
           builder: (context, constraints) {
             final wide = constraints.maxWidth > 800;
-            return Flex(
-              direction: wide ? Axis.horizontal : Axis.vertical,
-              crossAxisAlignment: CrossAxisAlignment.start,
+            if (wide) {
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (final plan in _plans)
+                    Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.only(
+                          right: plan != _plans.last ? 14 : 0,
+                        ),
+                        child: _PlanCard(
+                          plan: plan,
+                          isCurrent: isActive && sub?['planId'] == plan.id,
+                          isPending: isPending && sub?['requestedPlanId'] == plan.id,
+                          onRequest: () => _requestPlan(plan.id, plan.name, plan.price),
+                          onInstantActivate: () => _activateImmediately(
+                            plan.id,
+                            plan.name,
+                            plan.price,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 for (final plan in _plans)
-                  Expanded(
-                    flex: wide ? 1 : 0,
-                    child: Padding(
-                      padding: EdgeInsets.only(
-                        right: wide && plan != _plans.last ? 14 : 0,
-                        bottom: wide ? 0 : 14,
-                      ),
-                      child: _PlanCard(
-                        plan: plan,
-                        isCurrent: isActive && sub?['planId'] == plan.id,
-                        isPending: isPending && sub?['requestedPlanId'] == plan.id,
-                        onRequest: () => _requestPlan(plan.id, plan.name, plan.price),
-                        onInstantActivate: () => _activateImmediately(
-                          plan.id,
-                          plan.name,
-                          plan.price,
-                        ),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 14),
+                    child: _PlanCard(
+                      plan: plan,
+                      isCurrent: isActive && sub?['planId'] == plan.id,
+                      isPending: isPending && sub?['requestedPlanId'] == plan.id,
+                      onRequest: () => _requestPlan(plan.id, plan.name, plan.price),
+                      onInstantActivate: () => _activateImmediately(
+                        plan.id,
+                        plan.name,
+                        plan.price,
                       ),
                     ),
                   ),

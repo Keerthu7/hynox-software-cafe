@@ -406,7 +406,10 @@ class _WorkspaceState extends State<Workspace> {
           }),
         );
       }
-      final wide = MediaQuery.sizeOf(context).width >= 1000;
+      final screenWidth = MediaQuery.sizeOf(context).width;
+      final wide = screenWidth >= 1024;
+      final isMobile = screenWidth < 640;
+      final isTablet = screenWidth >= 640 && screenWidth < 1024;
       final Widget content;
       if (admin) {
         content = AdminPage(data: widget.store.data, section: page, store: widget.store);
@@ -449,7 +452,7 @@ class _WorkspaceState extends State<Workspace> {
                   children: [
                     Container(
                       height: 72,
-                      padding: EdgeInsets.symmetric(horizontal: wide ? 28 : 14),
+                      padding: EdgeInsets.symmetric(horizontal: wide ? 28 : (isMobile ? 12 : 18)),
                       decoration: const BoxDecoration(
                         color: Colors.white,
                         border: Border(bottom: BorderSide(color: border)),
@@ -549,7 +552,7 @@ class _WorkspaceState extends State<Workspace> {
                                   StoreLogoAvatar(
                                     logo: widget.store.data.profile.logo,
                                     name: admin ? 'HY' : widget.store.data.businessName,
-                                    size: 38,
+                                    size: wide ? 38 : (isMobile ? 32 : 36),
                                     borderColor: widget.store.data.profile.logo.isNotEmpty
                                         ? getActiveThemePrimary()
                                         : border,
@@ -601,10 +604,13 @@ class _WorkspaceState extends State<Workspace> {
                       const LinearProgressIndicator(minHeight: 2),
                     Expanded(
                       child: SingleChildScrollView(
-                        padding: EdgeInsets.all(wide ? 36 : 20),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isMobile ? 12 : (isTablet ? 20 : 32),
+                          vertical: isMobile ? 14 : 24,
+                        ),
                         child: Center(
                           child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 1400),
+                            constraints: const BoxConstraints(maxWidth: 1200),
                             child: content,
                           ),
                         ),
@@ -631,9 +637,10 @@ class WorkspaceEntry extends StatelessWidget {
       body: LayoutBuilder(
         builder: (context, constraints) {
           final wide = constraints.maxWidth > 850;
+          final isSmall = constraints.maxWidth < 480;
           final intro = Container(
             color: activeTheme.dark,
-            padding: EdgeInsets.all(wide ? 64 : 28),
+            padding: EdgeInsets.all(wide ? 64 : (isSmall ? 20 : 28)),
             child: SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -654,13 +661,13 @@ class WorkspaceEntry extends StatelessWidget {
                       ),
                     ],
                   ),
-                  SizedBox(height: wide ? 80 : 30),
-                  const Text(
+                  SizedBox(height: wide ? 80 : (isSmall ? 20 : 30)),
+                  Text(
                     'Big care.\nSmall business.',
                     style: TextStyle(
-                      fontSize: 48,
+                      fontSize: isSmall ? 32 : 48,
                       height: 1.1,
-                      letterSpacing: -2,
+                      letterSpacing: isSmall ? -1.2 : -2,
                       fontWeight: FontWeight.w700,
                       color: Colors.white,
                     ),
@@ -689,7 +696,7 @@ class WorkspaceEntry extends StatelessWidget {
             ),
           );
         final entry = Padding(
-          padding: EdgeInsets.all(wide ? 64 : 28),
+          padding: EdgeInsets.all(wide ? 64 : (isSmall ? 20 : 28)),
           child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 440),
@@ -698,12 +705,12 @@ class WorkspaceEntry extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Pill('HYNOX CAFÉ WORKSPACE'),
-                  const SizedBox(height: 24),
-                  const Text(
+                  SizedBox(height: isSmall ? 16 : 24),
+                  Text(
                     'Welcome to your\nnext chapter.',
                     style: TextStyle(
                       color: ink,
-                      fontSize: 36,
+                      fontSize: isSmall ? 28 : 36,
                       fontWeight: FontWeight.w700,
                       letterSpacing: -1,
                     ),

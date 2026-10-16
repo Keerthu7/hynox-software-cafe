@@ -63,14 +63,10 @@ class _OverviewPageState extends State<OverviewPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const PageHeading(
+        PageHeading(
           'A good day starts here.',
           'Your café at a glance. Let’s make every order count.',
-        ),
-        const SizedBox(height: 12),
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton.icon(
+          action: FilledButton.icon(
             onPressed: widget.onNew,
             icon: const Icon(Icons.add, size: 20),
             label: const Text(
@@ -79,7 +75,7 @@ class _OverviewPageState extends State<OverviewPage> {
             ),
             style: FilledButton.styleFrom(
               elevation: 0,
-              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
           ),
@@ -883,14 +879,10 @@ class _OrdersPageState extends State<OrdersPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const PageHeading(
+        PageHeading(
           'Every order, in order.',
           'Follow each order from the first item to the final receipt.',
-        ),
-        const SizedBox(height: 12),
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton.icon(
+          action: FilledButton.icon(
             onPressed: widget.onNew,
             icon: const Icon(Icons.add, size: 20),
             label: const Text(
@@ -899,7 +891,7 @@ class _OrdersPageState extends State<OrdersPage> {
             ),
             style: FilledButton.styleFrom(
               elevation: 0,
-              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
           ),

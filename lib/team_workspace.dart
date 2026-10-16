@@ -482,11 +482,14 @@ class _TeamWorkspaceState extends State<TeamWorkspace> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const PageHeading('Vendors', 'Create a shop and its login account.'),
-          FilledButton.icon(
-            onPressed: () => edit('vendor'),
-            icon: const Icon(Icons.add),
-            label: const Text('Create vendor'),
+          PageHeading(
+            'Vendors',
+            'Create a shop and its login account.',
+            action: FilledButton.icon(
+              onPressed: () => edit('vendor'),
+              icon: const Icon(Icons.add),
+              label: const Text('Create vendor'),
+            ),
           ),
           const SizedBox(height: 18),
           TextField(
@@ -510,14 +513,14 @@ class _TeamWorkspaceState extends State<TeamWorkspace> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const PageHeading(
+          PageHeading(
             'Subscriptions',
             'Edit plans shown to vendors and manage their subscription status.',
-          ),
-          FilledButton.icon(
-            onPressed: () => edit('plan'),
-            icon: const Icon(Icons.add),
-            label: const Text('Create plan'),
+            action: FilledButton.icon(
+              onPressed: () => edit('plan'),
+              icon: const Icon(Icons.add),
+              label: const Text('Create plan'),
+            ),
           ),
           const SizedBox(height: 20),
           for (final p in plans)
@@ -675,6 +678,7 @@ class _TeamWorkspaceState extends State<TeamWorkspace> {
     builder: (context, _, __) => LayoutBuilder(
       builder: (context, size) {
         final wide = size.maxWidth >= 900;
+        final isMobile = size.maxWidth < 640;
         return Scaffold(
           drawer: wide ? null : Drawer(child: navigation(true)),
           body: Row(
@@ -697,8 +701,16 @@ class _TeamWorkspaceState extends State<TeamWorkspace> {
                     if (loading) const LinearProgressIndicator(minHeight: 2),
                     Expanded(
                       child: SingleChildScrollView(
-                        padding: EdgeInsets.all(wide ? 32 : 20),
-                        child: content(),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isMobile ? 14 : (wide ? 32 : 20),
+                          vertical: isMobile ? 14 : 24,
+                        ),
+                        child: Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 1200),
+                            child: content(),
+                          ),
+                        ),
                       ),
                     ),
                   ],
