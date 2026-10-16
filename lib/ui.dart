@@ -187,7 +187,6 @@ Future<void> loadSettingsPrefs() async {
 ThemeData appTheme([Color? primaryColor, Color? darkColor, Color? accentColor]) {
   final current = getActiveTheme();
   final p = primaryColor ?? current.primary;
-  final d = darkColor ?? current.dark;
   final a = accentColor ?? current.accent;
   return ThemeData(
     useMaterial3: true,

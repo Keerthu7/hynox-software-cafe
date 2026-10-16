@@ -4,7 +4,6 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:flutter/services.dart';
 import 'domain.dart';
-import 'settings_page.dart';
 import 'ui.dart';
 
 String _pdfMoney(int value) => 'INR ${(value / 100).toStringAsFixed(2)}';

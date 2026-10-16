@@ -53,20 +53,8 @@ class _VendorSubscriptionPanelState extends State<VendorSubscriptionPanel> {
               {
                 'id': 'starter',
                 'name': 'Starter',
-                'price': 99900,
-                'features': ['Unlimited Invoices', 'WhatsApp Billing', '1 Cashier Account'],
-              },
-              {
-                'id': 'growth',
-                'name': 'Growth',
-                'price': 199900,
-                'features': ['Custom PDF Templates', 'Unlimited Staff Accounts', 'Export Reports', 'Multi-device'],
-              },
-              {
-                'id': 'pro',
-                'name': 'Pro Enterprise',
-                'price': 349900,
-                'features': ['All Growth Features', 'Priority Support', 'Custom Branding & Domain', 'Multi-outlet'],
+                'price': 9900,
+                'features': ['1 Outlet', 'Unlimited Orders', 'WhatsApp Billing', 'Basic Reports'],
               },
             ],
           };

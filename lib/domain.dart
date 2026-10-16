@@ -74,26 +74,56 @@ class MenuItem {
   final String category;
   final int price;
   final bool available;
+  final String image;
+  final bool availableStock;
+
   const MenuItem({
     required this.id,
     required this.name,
     required this.category,
     required this.price,
     this.available = true,
+    this.image = '',
+    this.availableStock = false,
   });
+
+  MenuItem copyWith({
+    String? id,
+    String? name,
+    String? category,
+    int? price,
+    bool? available,
+    String? image,
+    bool? availableStock,
+  }) =>
+      MenuItem(
+        id: id ?? this.id,
+        name: name ?? this.name,
+        category: category ?? this.category,
+        price: price ?? this.price,
+        available: available ?? this.available,
+        image: image ?? this.image,
+        availableStock: availableStock ?? this.availableStock,
+      );
+
   Map<String, dynamic> toJson() => {
     'id': id,
     'name': name,
     'category': category,
     'price': price,
     'available': available,
+    'image': image,
+    'availableStock': availableStock,
   };
+
   factory MenuItem.fromJson(Map<String, dynamic> j) => MenuItem(
     id: j['id'],
     name: j['name'],
     category: j['category'],
     price: j['price'],
-    available: j['available'],
+    available: j['available'] ?? true,
+    image: j['image'] ?? '',
+    availableStock: j['availableStock'] ?? false,
   );
 }
 

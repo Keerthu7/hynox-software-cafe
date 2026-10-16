@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'domain.dart';
 import 'store.dart';
 import 'ui.dart';
 import 'account_password.dart';
@@ -774,42 +773,14 @@ class _SubscriptionTabState extends State<_SubscriptionTab> {
     _PlanItem(
       id: 'starter',
       name: 'Starter',
-      price: 49900,
-      priceLabel: '₹499',
-      tag: 'Basic',
+      price: 9900,
+      priceLabel: '₹99',
+      tag: 'Starter Plan',
       features: [
-        'Single Outlet POS',
+        'Single Outlet POS Terminal',
         'Direct WhatsApp Billing',
-        'Daily Sales Reports',
-        'Up to 1,000 orders/month',
-      ],
-    ),
-    _PlanItem(
-      id: 'growth',
-      name: 'Growth',
-      price: 99900,
-      priceLabel: '₹999',
-      tag: 'Recommended',
-      features: [
-        'Unlimited Orders & Invoices',
-        'Thermal & PDF Custom Templates',
-        'Custom Store DP & Brand Logo',
-        'Advanced Analytics & Excel Export',
-        'Multi-theme Palette Support',
-      ],
-    ),
-    _PlanItem(
-      id: 'enterprise',
-      name: 'Enterprise',
-      price: 199900,
-      priceLabel: '₹1,999',
-      tag: 'Full Suite',
-      features: [
-        'Everything in Growth',
-        'Multi-Device Staff POS Terminals',
-        'Automated Cloud Backups',
-        'Dedicated 24/7 WhatsApp VIP Support',
-        'Custom Invoice Watermarks',
+        'Sales & Revenue Daily Reports',
+        'Inventory & Stock Tracking',
       ],
     ),
   ];
@@ -851,7 +822,7 @@ class _SubscriptionTabState extends State<_SubscriptionTab> {
     final isPending = sub != null && sub['requestStatus'] == 'pending';
     final trialDays = widget.store.data.trialDaysLeft(DateTime.now());
     final activePlanName = sub?['planName'] ?? 'Starter';
-    final requestedPlanName = sub?['requestedPlanName'] ?? 'Growth';
+    final requestedPlanName = sub?['requestedPlanName'] ?? 'Starter';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -943,9 +914,9 @@ class _SubscriptionTabState extends State<_SubscriptionTab> {
                     backgroundColor: const Color(0xFF16A34A),
                   ),
                   onPressed: () => _activateImmediately(
-                    sub['requestedPlanId'] ?? 'growth',
+                    sub['requestedPlanId'] ?? 'starter',
                     requestedPlanName,
-                    sub['requestedPrice'] ?? 99900,
+                    sub['requestedPrice'] ?? 9900,
                   ),
                   icon: const Icon(Icons.flash_on, size: 16),
                   label: const Text('Accept & Activate'),
@@ -1010,21 +981,17 @@ class _SubscriptionTabState extends State<_SubscriptionTab> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   for (final plan in _plans)
-                    Expanded(
-                      child: Padding(
-                        padding: EdgeInsets.only(
-                          right: plan != _plans.last ? 14 : 0,
-                        ),
-                        child: _PlanCard(
-                          plan: plan,
-                          isCurrent: isActive && sub?['planId'] == plan.id,
-                          isPending: isPending && sub?['requestedPlanId'] == plan.id,
-                          onRequest: () => _requestPlan(plan.id, plan.name, plan.price),
-                          onInstantActivate: () => _activateImmediately(
-                            plan.id,
-                            plan.name,
-                            plan.price,
-                          ),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 420),
+                      child: _PlanCard(
+                        plan: plan,
+                        isCurrent: isActive && sub['planId'] == plan.id,
+                        isPending: isPending && sub['requestedPlanId'] == plan.id,
+                        onRequest: () => _requestPlan(plan.id, plan.name, plan.price),
+                        onInstantActivate: () => _activateImmediately(
+                          plan.id,
+                          plan.name,
+                          plan.price,
                         ),
                       ),
                     ),
@@ -1039,8 +1006,8 @@ class _SubscriptionTabState extends State<_SubscriptionTab> {
                     padding: const EdgeInsets.only(bottom: 14),
                     child: _PlanCard(
                       plan: plan,
-                      isCurrent: isActive && sub?['planId'] == plan.id,
-                      isPending: isPending && sub?['requestedPlanId'] == plan.id,
+                      isCurrent: isActive && sub['planId'] == plan.id,
+                      isPending: isPending && sub['requestedPlanId'] == plan.id,
                       onRequest: () => _requestPlan(plan.id, plan.name, plan.price),
                       onInstantActivate: () => _activateImmediately(
                         plan.id,

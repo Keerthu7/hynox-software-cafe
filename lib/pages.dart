@@ -1,10 +1,11 @@
+import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:file_selector/file_selector.dart';
 import 'domain.dart';
 import 'store.dart';
 import 'ui.dart';
 import 'receipt.dart';
-import 'portal.dart';
 import 'bill_message.dart';
 import 'report_export.dart';
 import 'account_password.dart';
@@ -1617,52 +1618,76 @@ class MenuPage extends StatelessWidget {
               ),
             ...store.data.menu.map(
               (item) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: canvas,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        categoryIcon(item.category),
-                        color: item.available ? green : muted,
-                      ),
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () => edit(context, item),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: border),
                     ),
-                    const SizedBox(width: 15),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            item.name,
-                            style: const TextStyle(fontWeight: FontWeight.w700),
+                    child: Row(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: Container(
+                            width: 48,
+                            height: 48,
+                            color: canvas,
+                            child: _menuItemImageWidget(item),
                           ),
-                          const SizedBox(height: 6),
-                          Text(
-                            '${item.category} · ${item.available ? 'Available' : 'Sold out'}',
-                            style: const TextStyle(color: muted, fontSize: 11),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                item.name,
+                                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                              ),
+                              const SizedBox(height: 5),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 4,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  Text(
+                                    item.category,
+                                    style: const TextStyle(color: muted, fontSize: 11),
+                                  ),
+                                  if (item.available)
+                                    const Pill('Available to order', color: Color(0xFF16A34A))
+                                  else if (item.availableStock)
+                                    const Pill('Available stock', color: Color(0xFF2563EB))
+                                  else
+                                    const Pill('Sold out'),
+                                ],
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          money(item.price),
+                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                        ),
+                        const SizedBox(width: 4),
+                        IconButton(
+                          tooltip: 'Edit ${item.name}',
+                          onPressed: () => edit(context, item),
+                          icon: const Icon(
+                            Icons.edit_outlined,
+                            size: 20,
+                            color: green,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    Text(
-                      money(item.price),
-                      style: const TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                    IconButton(
-                      tooltip: 'Edit ${item.name}',
-                      onPressed: () => edit(context, item),
-                      icon: const Icon(
-                        Icons.edit_outlined,
-                        size: 20,
-                        color: green,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -1676,6 +1701,29 @@ class MenuPage extends StatelessWidget {
       ),
     ],
   );
+
+  static Widget _menuItemImageWidget(MenuItem item) {
+    if (item.image.isNotEmpty) {
+      final bytes = safeLogoBytes(item.image);
+      if (bytes != null) {
+        return Image.memory(bytes, fit: BoxFit.cover);
+      }
+      if (item.image.startsWith('http')) {
+        return Image.network(
+          item.image,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Icon(
+            categoryIcon(item.category),
+            color: item.available ? green : (item.availableStock ? const Color(0xFF2563EB) : muted),
+          ),
+        );
+      }
+    }
+    return Icon(
+      categoryIcon(item.category),
+      color: item.available ? green : (item.availableStock ? const Color(0xFF2563EB) : muted),
+    );
+  }
 }
 
 class MenuDialog extends StatefulWidget {
@@ -1692,7 +1740,10 @@ class _MenuDialogState extends State<MenuDialog> {
   late final TextEditingController price;
   late final TextEditingController category;
   late bool available;
+  late bool availableStock;
+  late String image;
   bool saving = false;
+
   @override
   void initState() {
     super.initState();
@@ -1704,6 +1755,8 @@ class _MenuDialogState extends State<MenuDialog> {
     );
     category = TextEditingController(text: widget.item?.category ?? 'Coffee');
     available = widget.item?.available ?? true;
+    availableStock = widget.item?.availableStock ?? false;
+    image = widget.item?.image ?? '';
   }
 
   @override
@@ -1720,6 +1773,71 @@ class _MenuDialogState extends State<MenuDialog> {
         (parts.length == 1 ? 0 : int.parse(parts[1].padRight(2, '0')));
   }
 
+  Future<void> _pickImage() async {
+    try {
+      const typeGroup = XTypeGroup(
+        label: 'Images',
+        extensions: ['jpg', 'jpeg', 'png', 'webp'],
+      );
+      final file = await openFile(acceptedTypeGroups: [typeGroup]);
+      if (file == null) return;
+      final bytes = await file.readAsBytes();
+      if (bytes.isEmpty) return;
+      final base64String = 'data:image/png;base64,${base64Encode(bytes)}';
+      if (mounted) setState(() => image = base64String);
+    } catch (e) {
+      if (mounted) toast(context, 'Could not select image: ${errorText(e)}');
+    }
+  }
+
+  Future<void> _enterImageUrl() async {
+    final controller = TextEditingController(text: image.startsWith('http') ? image : '');
+    final picked = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Enter Image URL'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            hintText: 'https://images.unsplash.com/...',
+            labelText: 'Web Image URL',
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: const Text('Apply')),
+        ],
+      ),
+    );
+    if (picked != null && mounted) {
+      setState(() => image = picked);
+    }
+  }
+
+  Widget _dialogImagePreview(String raw) {
+    if (raw.isNotEmpty) {
+      final bytes = safeLogoBytes(raw);
+      if (bytes != null) {
+        return Image.memory(bytes, fit: BoxFit.cover);
+      }
+      if (raw.startsWith('http')) {
+        return Image.network(
+          raw,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => const Icon(Icons.broken_image, color: muted),
+        );
+      }
+    }
+    return const Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.add_a_photo_outlined, color: muted, size: 28),
+        SizedBox(height: 4),
+        Text('Add Photo', style: TextStyle(fontSize: 10, color: muted, fontWeight: FontWeight.w600)),
+      ],
+    );
+  }
+
   Future<void> save() async {
     if (!form.currentState!.validate()) {
       return;
@@ -1734,6 +1852,8 @@ class _MenuDialogState extends State<MenuDialog> {
             category: category.text.trim(),
             price: paise,
             available: available,
+            image: image,
+            availableStock: availableStock,
           ),
         ),
       );
@@ -1750,15 +1870,61 @@ class _MenuDialogState extends State<MenuDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: Text(widget.item == null ? 'Add a menu item' : 'Edit menu item'),
+    title: Text(widget.item == null ? 'Add a menu item' : 'Edit ${widget.item!.name}'),
     content: SizedBox(
-      width: 400,
+      width: 420,
       child: SingleChildScrollView(
         child: Form(
           key: form,
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Image Picker Section
+              Center(
+                child: Column(
+                  children: [
+                    InkWell(
+                      onTap: saving ? null : _pickImage,
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        width: 84,
+                        height: 84,
+                        decoration: BoxDecoration(
+                          color: canvas,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: border, width: 1.5),
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: _dialogImagePreview(image),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: saving ? null : _pickImage,
+                          icon: const Icon(Icons.upload_file, size: 15),
+                          label: Text(image.isEmpty ? 'Upload image' : 'Change image', style: const TextStyle(fontSize: 12)),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: saving ? null : _enterImageUrl,
+                          icon: const Icon(Icons.link, size: 15),
+                          label: const Text('URL', style: TextStyle(fontSize: 12)),
+                        ),
+                        if (image.isNotEmpty)
+                          IconButton(
+                            tooltip: 'Remove image',
+                            onPressed: saving ? null : () => setState(() => image = ''),
+                            icon: const Icon(Icons.delete_outline, size: 18, color: Colors.red),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
               TextFormField(
                 controller: name,
                 maxLength: 60,
@@ -1799,14 +1965,56 @@ class _MenuDialogState extends State<MenuDialog> {
                 },
               ),
               const SizedBox(height: 16),
+              // Option 1: Available to order (clicking this disables stock)
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('Available to order'),
-                subtitle: const Text('Turn off when sold out'),
+                title: const Text('Available to order', style: TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: Text(
+                  available
+                      ? 'Live counter preparation active'
+                      : (availableStock ? 'Disabled (Available stock active)' : 'Turned off (Sold out)'),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: available ? const Color(0xFF16A34A) : muted,
+                  ),
+                ),
                 value: available,
                 onChanged: saving
                     ? null
-                    : (value) => setState(() => available = value),
+                    : (value) {
+                        setState(() {
+                          available = value;
+                          if (value) {
+                            availableStock = false; // Clicking available to order disables stock
+                          }
+                        });
+                      },
+              ),
+              const Divider(height: 16),
+              // Option 2: Available stock (clicking this disables order)
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Available stock', style: TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: Text(
+                  availableStock
+                      ? 'In-stock inventory mode active'
+                      : (available ? 'Disabled (Available to order active)' : 'Turned off (Out of stock)'),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: availableStock ? const Color(0xFF2563EB) : muted,
+                  ),
+                ),
+                value: availableStock,
+                onChanged: saving
+                    ? null
+                    : (value) {
+                        setState(() {
+                          availableStock = value;
+                          if (value) {
+                            available = false; // Clicking stock disables order
+                          }
+                        });
+                      },
               ),
             ],
           ),
@@ -2350,13 +2558,13 @@ class AdminPage extends StatelessWidget {
                 label: 'PAID SUBSCRIBERS',
                 value: isSubActive ? '1' : '0',
                 note: isSubActive
-                    ? '${store.activeSubscription!['planName'] ?? 'Pro'} plan active'
+                    ? '${store.activeSubscription!['planName'] ?? 'Starter'} plan active'
                     : (isSubPending ? 'Plan activation pending' : 'No active subscription'),
                 icon: Icons.verified_outlined,
               ),
               StatCard(
                 label: 'Hynox REVENUE',
-                value: isSubActive ? money(store.activeSubscription!['price'] ?? 199900) : '₹0',
+                value: isSubActive ? money(store.activeSubscription!['price'] ?? 9900) : '₹0',
                 note: isSubActive ? 'Monthly recurring subscription' : 'No subscriptions collected',
                 icon: Icons.account_balance_wallet_outlined,
               ),
@@ -2421,7 +2629,7 @@ class AdminPage extends StatelessWidget {
                           runSpacing: 8,
                           children: [
                             if (isSubActive)
-                              Pill('${store.activeSubscription!['planName'] ?? 'Growth'} active', color: const Color(0xFF16A34A))
+                              Pill('${store.activeSubscription!['planName'] ?? 'Starter'} active', color: const Color(0xFF16A34A))
                             else if (isSubPending)
                               const Pill('Plan requested', color: Color(0xFFF59E0B))
                             else
@@ -2445,7 +2653,7 @@ class AdminPage extends StatelessWidget {
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
-                                    'Requested: ${store.activeSubscription!['requestedPlanName'] ?? 'Growth'} · Awaiting Activation',
+                                    'Requested: ${store.activeSubscription!['requestedPlanName'] ?? 'Starter'} · Awaiting Activation',
                                     style: const TextStyle(color: Color(0xFF92400E), fontWeight: FontWeight.bold, fontSize: 12),
                                   ),
                                 ),
@@ -2467,13 +2675,13 @@ class AdminPage extends StatelessWidget {
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                               ),
                               onPressed: () {
-                                final planName = store.activeSubscription?['requestedPlanName'] ?? 'Growth';
-                                final planId = store.activeSubscription?['requestedPlanId'] ?? 'growth';
+                                final planName = store.activeSubscription?['requestedPlanName'] ?? 'Starter';
+                                final planId = store.activeSubscription?['requestedPlanId'] ?? 'starter';
                                 final newSub = {
                                   'status': 'active',
                                   'planId': planId,
                                   'planName': planName,
-                                  'price': store.activeSubscription?['requestedPrice'] ?? 199900,
+                                  'price': store.activeSubscription?['requestedPrice'] ?? 9900,
                                   'expiresAt': DateTime.now().add(const Duration(days: 30)).toIso8601String(),
                                   'activatedAt': DateTime.now().toIso8601String(),
                                   'activatedBy': 'Hynox team',
@@ -2522,7 +2730,7 @@ class _AdminSettingsView extends StatelessWidget {
     final sub = store.activeSubscription;
     final isSubActive = sub != null && sub['status'] == 'active';
     final isSubPending = sub != null && sub['requestStatus'] == 'pending';
-    final planName = sub?['planName'] ?? sub?['requestedPlanName'] ?? 'Growth';
+    final planName = sub?['planName'] ?? sub?['requestedPlanName'] ?? 'Starter';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2646,9 +2854,9 @@ class _AdminSettingsView extends StatelessWidget {
                       onPressed: () {
                         final newSub = {
                           'status': 'active',
-                          'planId': sub?['requestedPlanId'] ?? 'growth',
+                          'planId': sub?['requestedPlanId'] ?? 'starter',
                           'planName': planName,
-                          'price': sub?['requestedPrice'] ?? 99900,
+                          'price': sub?['requestedPrice'] ?? 9900,
                           'expiresAt': DateTime.now().add(const Duration(days: 30)).toIso8601String(),
                           'activatedAt': DateTime.now().toIso8601String(),
                           'activatedBy': 'Hynox Super Admin',

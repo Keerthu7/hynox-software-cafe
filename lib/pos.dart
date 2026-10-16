@@ -268,7 +268,7 @@ class _PosPageState extends State<PosPage> {
     final menu = widget.store.data.menu
         .where(
           (e) =>
-              e.available &&
+              (e.available || e.availableStock) &&
               (category == 'All' || e.category == category) &&
               e.name.toLowerCase().contains(query.toLowerCase()),
         )
@@ -434,6 +434,17 @@ class _PosPageState extends State<PosPage> {
                                   Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
+                                      if (item.image.isNotEmpty) ...[
+                                        ClipRRect(
+                                          borderRadius: BorderRadius.circular(8),
+                                          child: SizedBox(
+                                            height: 80,
+                                            width: double.infinity,
+                                            child: _buildItemImage(item),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                      ],
                                       Row(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
@@ -469,13 +480,35 @@ class _PosPageState extends State<PosPage> {
                                         ],
                                       ),
                                       const SizedBox(height: 4),
-                                      Text(
-                                        money(item.price),
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w800,
-                                          color: inCart ? activePrimary : ink,
-                                        ),
+                                      Row(
+                                        children: [
+                                          Text(
+                                            money(item.price),
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w800,
+                                              color: inCart ? activePrimary : ink,
+                                            ),
+                                          ),
+                                          if (item.availableStock) ...[
+                                            const SizedBox(width: 6),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFF2563EB).withValues(alpha: 0.12),
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                              child: const Text(
+                                                'STOCK',
+                                                style: TextStyle(
+                                                  fontSize: 9.5,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: Color(0xFF2563EB),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ],
                                       ),
                                     ],
                                   ),
@@ -554,6 +587,29 @@ class _PosPageState extends State<PosPage> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildItemImage(MenuItem item) {
+    if (item.image.isNotEmpty) {
+      final bytes = safeLogoBytes(item.image);
+      if (bytes != null) {
+        return Image.memory(bytes, fit: BoxFit.cover);
+      }
+      if (item.image.startsWith('http')) {
+        return Image.network(
+          item.image,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Container(
+            color: const Color(0xFFF1F5F9),
+            child: Icon(categoryIcon(item.category), color: muted, size: 28),
+          ),
+        );
+      }
+    }
+    return Container(
+      color: const Color(0xFFF1F5F9),
+      child: Icon(categoryIcon(item.category), color: muted, size: 28),
     );
   }
 

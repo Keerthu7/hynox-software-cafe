@@ -1,5 +1,3 @@
-import 'dart:convert';
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -162,15 +160,7 @@ class _WorkspaceState extends State<Workspace> {
     );
   }
 
-  String _storeInitials(String name) {
-    final clean = name.trim();
-    if (clean.isEmpty) return 'ST';
-    final parts = clean.split(' ').where((w) => w.isNotEmpty).toList();
-    if (parts.length == 1) {
-      return parts[0].substring(0, math.min(2, parts[0].length)).toUpperCase();
-    }
-    return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
-  }
+
 
   Widget sidebar({bool drawer = false}) {
     final activeTheme = getActiveTheme();

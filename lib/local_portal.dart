@@ -19,8 +19,20 @@ class LocalPortalApi extends PortalApi {
     SharedPreferences prefs,
     CafeData legacy,
   ) async {
+    final singleStarterPlan = {
+      'id': 'starter',
+      'name': 'Starter',
+      'price': 9900,
+      'features': ['Billing', 'Customers', 'Reports', 'WhatsApp Bills'],
+      'active': true,
+      'version': 1,
+    };
     final raw = prefs.getString(storageKey);
-    if (raw != null) return LocalPortalApi(prefs, jsonDecode(raw));
+    if (raw != null) {
+      final db = jsonDecode(raw) as Map<String, dynamic>;
+      db['plans'] = [singleStarterPlan];
+      return LocalPortalApi(prefs, db);
+    }
     final now = DateTime.now();
     final second = CafeData(
       businessName: 'Corner Cafe',
@@ -63,19 +75,7 @@ class LocalPortalApi extends PortalApi {
       },
       'profiles': {},
       'plans': [
-        for (final item in [
-          ('starter', 'Starter', 99900),
-          ('growth', 'Growth', 199900),
-          ('pro', 'Pro', 349900),
-        ])
-          {
-            'id': item.$1,
-            'name': item.$2,
-            'price': item.$3,
-            'features': ['Billing', 'Customers', 'Reports'],
-            'active': true,
-            'version': 1,
-          },
+        singleStarterPlan,
       ],
     });
     await api.persist(api.database);
