@@ -559,147 +559,37 @@ class _PosPageState extends State<PosPage> {
       ...widget.store.data.menu.map((e) => e.category).toSet(),
     ];
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Text(
-                'Menu',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -.6,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Container(
-                  height: 36,
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: border),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.picture_as_pdf_outlined, size: 16, color: activePrimary),
-                      const SizedBox(width: 6),
-                      const Text(
-                        'Template: ',
-                        style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: muted),
-                      ),
-                      Expanded(
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<int>(
-                            value: selectedTemplate,
-                            isDense: true,
-                            isExpanded: true,
-                            icon: const Icon(Icons.arrow_drop_down, size: 18),
-                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: ink),
-                            items: [
-                              for (int i = 0; i < pdfTemplates.length; i++)
-                                DropdownMenuItem<int>(
-                                  value: i,
-                                  child: Text(
-                                    pdfTemplates[i].name,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                            ],
-                            onChanged: (val) {
-                              if (val != null) setState(() => selectedTemplate = val);
-                            },
-                          ),
-                        ),
-                      ),
-                    ],
+              const Expanded(
+                child: Text(
+                  'Menu',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -.6,
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
               OutlinedButton.icon(
                 onPressed: saving ? null : customItem,
-                icon: const Icon(Icons.add, size: 14),
+                icon: const Icon(Icons.add, size: 15),
                 label: const Text(
-                  'Custom',
-                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
+                  'Custom item',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                 ),
                 style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          // Option to proceed to payment via WhatsApp bill directly above menu
-          Material(
-            color: cart.isNotEmpty ? const Color(0xFF16A34A) : Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            elevation: cart.isNotEmpty ? 2 : 0,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(12),
-              onTap: saving ? null : proceedWithWhatsAppBill,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: cart.isNotEmpty ? const Color(0xFF16A34A) : border,
-                  ),
-                  gradient: cart.isNotEmpty
-                      ? const LinearGradient(
-                          colors: [Color(0xFF16A34A), Color(0xFF15803D)],
-                        )
-                      : null,
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: cart.isNotEmpty
-                            ? Colors.white.withValues(alpha: 0.25)
-                            : const Color(0xFF16A34A).withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        cart.isNotEmpty ? '$count items · ${money(total)}' : '0 items',
-                        style: TextStyle(
-                          color: cart.isNotEmpty ? Colors.white : const Color(0xFF16A34A),
-                          fontWeight: FontWeight.w800,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        cart.isNotEmpty
-                            ? 'Proceed to payment via WhatsApp bill'
-                            : 'Add items to send WhatsApp bill & PDF receipt',
-                        style: TextStyle(
-                          color: cart.isNotEmpty ? Colors.white : muted,
-                          fontWeight: cart.isNotEmpty ? FontWeight.w700 : FontWeight.w500,
-                          fontSize: 12.5,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    Icon(
-                      Icons.arrow_forward_rounded,
-                      size: 16,
-                      color: cart.isNotEmpty ? Colors.white : muted,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           SizedBox(
             height: 38,
             child: TextField(
@@ -1208,45 +1098,7 @@ class _PosPageState extends State<PosPage> {
                 ],
               ),
             ),
-            const SizedBox(height: 14),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: canvas,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: border),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.picture_as_pdf_outlined, size: 18, color: activePrimary),
-                  const SizedBox(width: 8),
-                  const Expanded(
-                    child: Text(
-                      'PDF Template:',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: muted),
-                    ),
-                  ),
-                  DropdownButtonHideUnderline(
-                    child: DropdownButton<int>(
-                      value: selectedTemplate,
-                      isDense: true,
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: ink),
-                      items: [
-                        for (int i = 0; i < pdfTemplates.length; i++)
-                          DropdownMenuItem<int>(
-                            value: i,
-                            child: Text(pdfTemplates[i].name),
-                          ),
-                      ],
-                      onChanged: (val) {
-                        if (val != null) setState(() => selectedTemplate = val);
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
@@ -1317,7 +1169,8 @@ class _PosPageState extends State<PosPage> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Expanded(
-                    child: Center(
+                    child: Align(
+                      alignment: Alignment.topCenter,
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: 1000),
                         child: menuPanel(),
