@@ -1,0 +1,35 @@
+{
+    "name": "Hynox Café Workspace",
+    "short_name": "Hynox",
+    "start_url": ".",
+    "display": "standalone",
+    "background_color": "#F5F6F2",
+    "theme_color": "#172D2A",
+    "description": "Orders, billing and insights for your café. Local prototype.",
+    "orientation": "portrait-primary",
+    "prefer_related_applications": false,
+    "icons": [
+        {
+            "src": "icons/Icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-maskable-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable"
+        },
+        {
+            "src": "icons/Icon-maskable-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ]
+}

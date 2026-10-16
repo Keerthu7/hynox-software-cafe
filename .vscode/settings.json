@@ -1,0 +1,8 @@
+{
+  "dart.flutterSdkPath": "C:\\Users\\keert\\Documents\\Codex\\2026-10-12\\hynos-company-work-h-y-n\\work\\flutter",
+  "java.autobuild.enabled": false,
+  "java.import.gradle.enabled": false,
+  "files.watcherExclude": {"**/work/**": true},
+  "search.exclude": {"**/work/**": true},
+  "java.import.exclusions": ["**/node_modules/**", "**/.metadata/**", "**/archetype-resources/**", "**/META-INF/maven/**", "**/work/**", "**/build/**", "**/outputs/**"]
+}
