@@ -28,14 +28,14 @@ export function decryptToken(value) {
 }
 
 function graphBase() {
-  const version = process.env.META_GRAPH_API_VERSION || 'v25.0';
+  const version = String(process.env.META_GRAPH_API_VERSION || 'v25.0').trim();
   if (!/^v\d+\.\d+$/.test(version)) throw new Error('META_GRAPH_API_VERSION must look like v25.0.');
   return `https://graph.facebook.com/${version}`;
 }
 
 export async function exchangeSignupCode(code, wabaId, phoneNumberId) {
-  const appId = process.env.META_APP_ID;
-  const appSecret = process.env.META_APP_SECRET;
+  const appId = String(process.env.META_APP_ID || '').trim();
+  const appSecret = String(process.env.META_APP_SECRET || '').trim();
   if (!appId || !appSecret) throw new Error('Meta app credentials are not configured on the server.');
   if (!code || !wabaId) throw new Error('Meta did not return all WhatsApp signup details.');
 

@@ -38,9 +38,9 @@ try {
   await run(flutter, [
     'build', 'web', '--release',
     '--dart-define=Hynox_REMOTE_API=true',
-    `--dart-define=Hynox_META_APP_ID=${process.env.META_APP_ID || ''}`,
-    `--dart-define=Hynox_META_CONFIG_ID=${process.env.META_CONFIG_ID || ''}`,
-    `--dart-define=Hynox_BILLDESK_WEB_URL=${process.env.BILLDESK_WEB_URL || ''}`,
+    `--dart-define=Hynox_META_APP_ID=${String(process.env.META_APP_ID || '').trim()}`,
+    `--dart-define=Hynox_META_CONFIG_ID=${String(process.env.META_CONFIG_ID || '').trim()}`,
+    `--dart-define=Hynox_BILLDESK_WEB_URL=${String(process.env.BILLDESK_WEB_URL || '').trim()}`,
   ], common);
 } catch (error) {
   process.stderr.write(`${error.stderr || ''}${error.message}\n`);

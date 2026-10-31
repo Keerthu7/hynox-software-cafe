@@ -55,7 +55,20 @@ class PortalApi {
         'BillDesk received a webpage instead of an API response. Deploy the latest version and try again.',
       );
     }
-    final result = jsonDecode(response.body) as Map<String, dynamic>;
+    dynamic decoded;
+    try {
+      decoded = jsonDecode(response.body);
+    } on FormatException {
+      throw StateError(
+        'BillDesk received an invalid API response (HTTP ${response.statusCode}). Refresh and retry.',
+      );
+    }
+    if (decoded is! Map<String, dynamic>) {
+      throw StateError(
+        'BillDesk received an unexpected API response (HTTP ${response.statusCode}). Refresh and retry.',
+      );
+    }
+    final result = decoded;
     if (response.statusCode >= 400) {
       throw StateError(result['error'] ?? 'Request failed.');
     }

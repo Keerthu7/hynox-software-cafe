@@ -503,9 +503,13 @@ void toast(BuildContext context, String text) =>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(text), behavior: SnackBarBehavior.floating),
     );
-String errorText(Object error) => error is StateError
-    ? error.message.toString()
-    : 'Could not save locally. Check device storage and try again.';
+String errorText(Object error) {
+  if (error is StateError) return error.message.toString();
+  if (error is FormatException) {
+    return 'BillDesk received an invalid response. Refresh the page and try again.';
+  }
+  return 'BillDesk could not complete this action (${error.runtimeType}). Please retry.';
+}
 
 String receiptStatusMessage(String? status) => switch (status) {
   'accepted' =>

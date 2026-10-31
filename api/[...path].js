@@ -149,13 +149,15 @@ async function handle(req, res) {
   }
 
   if (path === '/whatsapp/config' && req.method === 'GET') {
-    if (!process.env.META_APP_ID || !process.env.META_CONFIG_ID) {
+    const appId = String(process.env.META_APP_ID || '').trim();
+    const configId = String(process.env.META_CONFIG_ID || '').trim();
+    if (!appId || !configId) {
       return json(res, 503, { error: 'Meta Embedded Signup is not configured yet.' });
     }
     return json(res, 200, {
-      appId: process.env.META_APP_ID,
-      configId: process.env.META_CONFIG_ID,
-      webUrl: process.env.BILLDESK_WEB_URL || '',
+      appId,
+      configId,
+      webUrl: String(process.env.BILLDESK_WEB_URL || '').trim(),
     });
   }
 
