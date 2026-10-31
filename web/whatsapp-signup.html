@@ -62,7 +62,13 @@
       }
 
       window.addEventListener('message', (event) => {
-        if (!['https://www.facebook.com', 'https://web.facebook.com'].includes(event.origin)) return;
+        // Meta may deliver Embedded Signup session events from different
+        // HTTPS facebook.com subdomains. Accept that domain boundary without
+        // allowing lookalike hosts such as facebook.com.example.org.
+        let eventUrl;
+        try { eventUrl = new URL(event.origin); } catch (_) { return; }
+        if (eventUrl.protocol !== 'https:' ||
+            (eventUrl.hostname !== 'facebook.com' && !eventUrl.hostname.endsWith('.facebook.com'))) return;
         let data;
         try { data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data; }
         catch (_) { return; }
