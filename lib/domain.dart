@@ -14,10 +14,11 @@ enum PaymentState { unpaid, paid, refunded }
 enum OrderStage { preparing, ready, completed, cancelled }
 
 class BusinessProfile {
-  final String phone, address, gstin, invoicePrefix, greeting, reviewUrl, logo;
+  final String phone, whatsappNumber, address, gstin, invoicePrefix, greeting, reviewUrl, logo;
   final int taxBasisPoints;
   const BusinessProfile({
     this.phone = '',
+    this.whatsappNumber = '8870524355',
     this.address = '',
     this.gstin = '',
     this.invoicePrefix = 'HY',
@@ -28,6 +29,7 @@ class BusinessProfile {
   });
   Map<String, dynamic> toJson() => {
     'phone': phone,
+    'whatsappNumber': whatsappNumber,
     'address': address,
     'gstin': gstin,
     'invoicePrefix': invoicePrefix,
@@ -38,6 +40,7 @@ class BusinessProfile {
   };
   BusinessProfile copyWith({
     String? phone,
+    String? whatsappNumber,
     String? address,
     String? gstin,
     String? invoicePrefix,
@@ -48,6 +51,7 @@ class BusinessProfile {
   }) =>
       BusinessProfile(
         phone: phone ?? this.phone,
+        whatsappNumber: whatsappNumber ?? this.whatsappNumber,
         address: address ?? this.address,
         gstin: gstin ?? this.gstin,
         invoicePrefix: invoicePrefix ?? this.invoicePrefix,
@@ -58,6 +62,9 @@ class BusinessProfile {
       );
   factory BusinessProfile.fromJson(Map<String, dynamic> j) => BusinessProfile(
     phone: j['phone'] ?? '',
+    whatsappNumber: j['whatsappNumber'] == null || j['whatsappNumber'] == '6383629997'
+        ? '8870524355'
+        : j['whatsappNumber'],
     address: j['address'] ?? '',
     gstin: j['gstin'] ?? '',
     invoicePrefix: j['invoicePrefix'] ?? 'HY',
@@ -173,6 +180,7 @@ class CafeOrder {
   final DateTime? paidAt;
   final DateTime? refundedAt;
   final String? refundReason;
+  final bool invoiceConsent;
   final int taxBasisPoints;
   final int discount;
   final String businessName;
@@ -191,6 +199,7 @@ class CafeOrder {
     this.paidAt,
     this.refundedAt,
     this.refundReason,
+    this.invoiceConsent = false,
     this.taxBasisPoints = 0,
     this.discount = 0,
     this.businessName = '',
@@ -213,6 +222,7 @@ class CafeOrder {
     int? discount,
     String? customer,
     String? phone,
+    bool? invoiceConsent,
   }) => CafeOrder(
     id: id,
     createdAt: createdAt,
@@ -231,6 +241,7 @@ class CafeOrder {
     discount: discount ?? this.discount,
     businessName: businessName,
     profile: profile,
+    invoiceConsent: invoiceConsent ?? this.invoiceConsent,
   );
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -246,6 +257,7 @@ class CafeOrder {
     'paidAt': paidAt?.toIso8601String(),
     'refundedAt': refundedAt?.toIso8601String(),
     'refundReason': refundReason,
+    'invoiceConsent': invoiceConsent,
     'taxBasisPoints': taxBasisPoints,
     'discount': discount,
     'businessName': businessName,
@@ -267,6 +279,7 @@ class CafeOrder {
         ? null
         : DateTime.parse(j['refundedAt']),
     refundReason: j['refundReason'],
+    invoiceConsent: j['invoiceConsent'] ?? false,
     taxBasisPoints: j['taxBasisPoints'] ?? 0,
     discount: j['discount'] ?? 0,
     businessName: j['businessName'] ?? '',
@@ -307,6 +320,7 @@ class CafeData {
     String table = '',
     String? paymentMethod,
     int discount = 0,
+    bool invoiceConsent = false,
   }) {
     _validateLines(lines);
     final subtotal = lines.fold(0, (sum, line) => sum + line.total);
@@ -341,6 +355,7 @@ class CafeData {
       taxBasisPoints: profile.taxBasisPoints,
       businessName: businessName,
       profile: profile,
+      invoiceConsent: invoiceConsent,
     );
     orders.insert(0, value);
     return value;
@@ -385,13 +400,13 @@ class CafeData {
     }
   }
 
-  void updateCustomer(String id, String customer, String phone) {
+  void updateCustomer(String id, String customer, String phone, {bool? invoiceConsent}) {
     final old = order(id);
     if (!old.editable) {
       throw StateError('Paid customer details cannot be changed.');
     }
     validateCustomer(customer, phone);
-    _replace(old.copyWith(customer: customer.trim(), phone: phone.trim()));
+    _replace(old.copyWith(customer: customer.trim(), phone: phone.trim(), invoiceConsent: invoiceConsent));
   }
 
   void setStage(String id, OrderStage stage) {

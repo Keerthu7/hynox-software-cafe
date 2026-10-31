@@ -1226,13 +1226,15 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
         (data) => data.recordPayment(order.id, method, DateTime.now()),
       );
       final updatedOrder = widget.store.data.order(order.id);
-      if (updatedOrder.phone.isNotEmpty) {
+      if (!widget.store.automaticWhatsApp && updatedOrder.phone.isNotEmpty && updatedOrder.invoiceConsent) {
         try {
           await openWhatsAppMessage(updatedOrder, widget.store.data.businessName);
         } catch (_) {}
       }
       if (mounted) {
-        toast(context, 'Payment saved via $method. WhatsApp bill opened.');
+        toast(context, updatedOrder.invoiceConsent
+            ? (widget.store.automaticWhatsApp ? 'Payment saved via $method. BillDesk is submitting the WhatsApp receipt.' : 'Payment saved via $method. WhatsApp bill opened.')
+            : 'Payment saved via $method. Customer did not consent to WhatsApp invoice delivery.');
       }
     } catch (e) {
       if (mounted) toast(context, errorText(e));
@@ -1261,13 +1263,15 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
           (data) => data.recordPayment(order.id, method, DateTime.now()),
         );
         final updatedOrder = widget.store.data.order(order.id);
-        if (updatedOrder.phone.isNotEmpty) {
+        if (!widget.store.automaticWhatsApp && updatedOrder.phone.isNotEmpty && updatedOrder.invoiceConsent) {
           try {
             await openWhatsAppMessage(updatedOrder, widget.store.data.businessName);
           } catch (_) {}
         }
         if (mounted) {
-          toast(context, 'Payment saved via $method. WhatsApp bill opened.');
+          toast(context, updatedOrder.invoiceConsent
+              ? (widget.store.automaticWhatsApp ? 'Payment saved via $method. BillDesk is submitting the WhatsApp receipt.' : 'Payment saved via $method. WhatsApp bill opened.')
+              : 'Payment saved via $method. Customer did not consent to WhatsApp invoice delivery.');
         }
       } catch (e) {
         if (mounted) toast(context, errorText(e));

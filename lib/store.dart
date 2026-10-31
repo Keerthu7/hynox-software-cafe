@@ -15,6 +15,10 @@ class CafeStore extends ChangeNotifier {
   final Future<Map<String, dynamic>> Function()? loadSubscription;
   final Future<Map<String, dynamic>> Function(String planId)? requestPlan;
   final Future<Map<String, dynamic>> Function(String planId, String method)? paySubscription;
+  final Future<Map<String, dynamic>> Function()? loadWhatsAppStatus;
+  final Future<Map<String, dynamic>> Function()? connectWhatsApp;
+  final Future<Map<String, dynamic>> Function()? disconnectWhatsApp;
+  final bool automaticWhatsApp;
   Map<String, dynamic>? activeSubscription;
   bool busy = false;
   CafeData get data => _data;
@@ -30,6 +34,10 @@ class CafeStore extends ChangeNotifier {
     this.loadSubscription,
     this.requestPlan,
     this.paySubscription,
+    this.loadWhatsAppStatus,
+    this.connectWhatsApp,
+    this.disconnectWhatsApp,
+    this.automaticWhatsApp = false,
   });
 
   void updateSubscription(Map<String, dynamic>? sub) {

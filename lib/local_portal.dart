@@ -12,7 +12,7 @@ class LocalPortalApi extends PortalApi {
   final SharedPreferences prefs;
   Map<String, dynamic> database;
   String? currentPhone;
-  LocalPortalApi(this.prefs, this.database);
+  LocalPortalApi(this.prefs, this.database) : super(remoteBackend: false);
   static String hash(String value) =>
       sha256.convert(utf8.encode(value)).toString();
   static Future<LocalPortalApi> open(

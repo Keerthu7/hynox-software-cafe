@@ -1,5 +1,14 @@
 {
+  "buildCommand": "npm run build",
   "outputDirectory": "build/web",
+  "functions": {
+    "api/[...path].js": {
+      "maxDuration": 30
+    },
+    "api/whatsapp-webhook.js": {
+      "maxDuration": 30
+    }
+  },
   "rewrites": [
     {
       "source": "/(.*)",

@@ -36,3 +36,5 @@ For Android, connect an unlocked phone with USB debugging enabled and double-cli
 ```
 
 See FLUTTER-SETUP.md for SDK and PATH configuration, and VALIDATION.md for completed checks.
+
+For the Vercel + Neon Version 2 remote backend and WhatsApp Embedded Signup setup, see [WHATSAPP-V2-SETUP.md](WHATSAPP-V2-SETUP.md). The default Flutter run/build remains Version 1 local mode; the Vercel web build selects the remote mode.

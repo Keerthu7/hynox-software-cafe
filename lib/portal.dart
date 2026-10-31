@@ -10,13 +10,16 @@ import 'receipt.dart';
 import 'ui.dart';
 import 'team_workspace.dart';
 import 'bill_message.dart';
+import 'whatsapp_signup.dart';
 
 class PortalApi {
   final http.Client client;
+  final bool remoteBackend;
   String token = '';
   int revision = 0;
   Set<String> paidIds = {};
-  PortalApi({http.Client? client}) : client = client ?? http.Client();
+  PortalApi({http.Client? client, this.remoteBackend = true})
+    : client = client ?? http.Client();
   Uri url(String path) {
     const configured = String.fromEnvironment('Hynox_API_URL');
     return (configured.isNotEmpty
@@ -89,9 +92,35 @@ class PortalApi {
       await request('/api/receipt', {
         'orderId': order.id,
         'pdf': base64Encode(await buildReceipt(order, data.businessName)),
+        'invoiceConsent': order.invoiceConsent,
+        'customerName': order.customer,
+        'customerPhone': order.phone.length == 10 ? '+91${order.phone}' : order.phone,
+        'businessName': order.businessName.isNotEmpty
+            ? order.businessName
+            : data.businessName,
+        'total': money(order.total),
       });
     }
   }
+
+  Future<Map<String, dynamic>> whatsappConfig() =>
+      request('/api/whatsapp/config');
+
+  Future<Map<String, dynamic>> whatsappStatus() =>
+      request('/api/whatsapp/status');
+
+  Future<Map<String, dynamic>> connectWhatsApp({
+    required String code,
+    required String wabaId,
+    required String phoneNumberId,
+  }) => request('/api/whatsapp/connect', {
+    'code': code,
+    'wabaId': wabaId,
+    'phoneNumberId': phoneNumberId,
+  });
+
+  Future<Map<String, dynamic>> disconnectWhatsApp() =>
+      request('/api/whatsapp/disconnect', {});
 
   Future<void> save(String raw) async {
     final result = await request('/api/state', {
@@ -198,6 +227,31 @@ class _PortalGateState extends State<PortalGate> {
             return res;
           },
           receiptStatuses: api.statuses,
+          automaticWhatsApp: api.remoteBackend,
+          loadWhatsAppStatus: api.remoteBackend ? api.whatsappStatus : null,
+          connectWhatsApp: api.remoteBackend
+              ? () async {
+                  const appId = String.fromEnvironment('Hynox_META_APP_ID');
+                  const configId = String.fromEnvironment('Hynox_META_CONFIG_ID');
+                  const signupOrigin = String.fromEnvironment('Hynox_BILLDESK_WEB_URL');
+                  final config = appId.isNotEmpty && configId.isNotEmpty
+                      ? <String, dynamic>{'appId': appId, 'configId': configId, 'webUrl': signupOrigin}
+                      : await api.whatsappConfig();
+                  final signup = await launchWhatsAppSignup(
+                    appId: config['appId'] as String,
+                    configId: config['configId'] as String,
+                    signupUrl: config['webUrl'] as String?,
+                  );
+                  return api.connectWhatsApp(
+                    code: signup['code']!,
+                    wabaId: signup['wabaId']!,
+                    phoneNumberId: signup['phoneNumberId']!,
+                  );
+                }
+              : null,
+          disconnectWhatsApp: api.remoteBackend
+              ? api.disconnectWhatsApp
+              : null,
           retryReceipt: (orderId) async {
             final order = store!.data.order(orderId);
             await api.request('/api/receipt', {
@@ -205,6 +259,15 @@ class _PortalGateState extends State<PortalGate> {
               'pdf': base64Encode(
                 await buildReceipt(order, store!.data.businessName),
               ),
+              'invoiceConsent': order.invoiceConsent,
+              'customerName': order.customer,
+              'customerPhone': order.phone.length == 10
+                  ? '+91${order.phone}'
+                  : order.phone,
+              'businessName': order.businessName.isNotEmpty
+                  ? order.businessName
+                  : store!.data.businessName,
+              'total': money(order.total),
             });
           },
           changePassword: (current, password) async {
@@ -435,6 +498,7 @@ class ReceiptDeliveryPanel extends StatefulWidget {
 
 class _ReceiptDeliveryPanelState extends State<ReceiptDeliveryPanel> {
   String label = 'Preparing PDF…';
+  String? _receiptStatus;
   bool _hasPhone = false;
   bool _sending = false;
 
@@ -446,14 +510,25 @@ class _ReceiptDeliveryPanelState extends State<ReceiptDeliveryPanel> {
   }
 
   Future<void> refresh() async {
+    final getStatuses = widget.store.receiptStatuses;
+    if (getStatuses == null) {
+      if (mounted) setState(() => label = 'Automatic WhatsApp delivery is not configured for this workspace.');
+      return;
+    }
     try {
-      final states = await widget.store.receiptStatuses!();
+      final states = await getStatuses();
       if (mounted) {
+        _receiptStatus = states[widget.orderId];
         setState(
-          () => label = switch (states[widget.orderId]) {
-            'connection_needed' => 'Open WhatsApp to send your text bill, greeting and review request. Automatic sending needs WhatsApp Business.',
+          () => label = switch (_receiptStatus) {
+            'connection_needed' => 'Connect this cafe’s WhatsApp Business account in Settings to enable automatic receipt delivery.',
             'accepted' => 'Bill message accepted by WhatsApp for sending.',
+            'sent' => 'WhatsApp sent the bill; waiting for delivery confirmation.',
+            'delivered' => 'WhatsApp reports that the customer received the bill.',
+            'read' => 'WhatsApp reports that the customer read the bill.',
             'sending' => 'Bill message is being submitted to WhatsApp.',
+            'consent_required' => 'The customer has not agreed to receive a WhatsApp invoice. Ask for consent before sending.',
+            'template_not_configured' => 'The WhatsApp receipt template is not configured on the BillDesk server yet.',
             'delivery_unknown' => 'WhatsApp submission could not be confirmed. Check the Business account before retrying.',
             'failed' =>
               'WhatsApp submission failed. Check the connection and retry.',
@@ -526,7 +601,8 @@ class _ReceiptDeliveryPanelState extends State<ReceiptDeliveryPanel> {
                 icon: const Icon(Icons.chat_outlined),
                 label: const Text('Open WhatsApp message'),
               ),
-            if (_hasPhone)
+            if (_hasPhone && widget.store.retryReceipt != null &&
+                !{'accepted', 'sent', 'delivered', 'read', 'sending'}.contains(_receiptStatus))
               FilledButton.icon(
                 onPressed: _sending ? null : retry,
                 style: FilledButton.styleFrom(

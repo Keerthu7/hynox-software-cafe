@@ -33,14 +33,18 @@ Future<void> main() async {
     if (raw == null) {
       await persist(data.encode());
     }
-    final api = await LocalPortalApi.open(prefs, data);
+    final remoteBackend = const bool.fromEnvironment('Hynox_REMOTE_API');
+    final PortalApi api = remoteBackend
+        ? PortalApi()
+        : await LocalPortalApi.open(prefs, data);
     runApp(
       HynoxApp(
         store: CafeStore(
           data,
           persist,
-          openWhatsApp: (order) =>
-              openWhatsAppMessage(order, data.businessName),
+          openWhatsApp: remoteBackend
+              ? null
+              : (order) => openWhatsAppMessage(order, data.businessName),
         ),
         connected: true,
         api: api,

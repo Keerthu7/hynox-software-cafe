@@ -76,6 +76,7 @@ class _SettingsHubState extends State<SettingsHub> {
     (title: 'PDF Template', icon: Icons.picture_as_pdf_outlined),
     (title: 'Profile & DP', icon: Icons.account_circle_outlined),
     (title: 'Business Info', icon: Icons.storefront_outlined),
+    (title: 'WhatsApp', icon: Icons.chat_outlined),
     (title: 'Subscription', icon: Icons.card_membership_outlined),
     (title: 'Team & Security', icon: Icons.shield_outlined),
     (title: 'Color Theme', icon: Icons.palette_outlined),
@@ -144,8 +145,9 @@ class _SettingsHubState extends State<SettingsHub> {
           0 => const _PdfTemplateTab(),
           1 => _ProfileTab(store: widget.store),
           2 => _BusinessTab(store: widget.store),
-          3 => _SubscriptionTab(store: widget.store),
-          4 => _TeamTab(store: widget.store),
+          3 => _WhatsAppConnectionTab(store: widget.store),
+          4 => _SubscriptionTab(store: widget.store),
+          5 => _TeamTab(store: widget.store),
           _ => const _ThemeTab(),
         },
       ],
@@ -156,6 +158,149 @@ class _SettingsHubState extends State<SettingsHub> {
 // ═════════════════════════════════════════════════════════════════════════════
 // 1. PROFILE & STORE DP TAB
 // ═════════════════════════════════════════════════════════════════════════════
+
+class _WhatsAppConnectionTab extends StatefulWidget {
+  final CafeStore store;
+  const _WhatsAppConnectionTab({required this.store});
+
+  @override
+  State<_WhatsAppConnectionTab> createState() => _WhatsAppConnectionTabState();
+}
+
+class _WhatsAppConnectionTabState extends State<_WhatsAppConnectionTab> {
+  bool _loading = false;
+  bool _working = false;
+  Map<String, dynamic>? _status;
+  String? _problem;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final load = widget.store.loadWhatsAppStatus;
+    if (load == null) return;
+    setState(() { _loading = true; _problem = null; });
+    try {
+      final current = await load();
+      if (mounted) setState(() => _status = current);
+    } catch (e) {
+      if (mounted) setState(() => _problem = errorText(e));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _connect() async {
+    final connect = widget.store.connectWhatsApp;
+    if (connect == null) return;
+    setState(() { _working = true; _problem = null; });
+    try {
+      final result = await connect();
+      if (mounted) {
+        setState(() => _status = result);
+        toast(context, 'WhatsApp Business connected for this cafe.');
+      }
+    } catch (e) {
+      if (mounted) setState(() => _problem = errorText(e));
+    } finally {
+      if (mounted) setState(() => _working = false);
+    }
+  }
+
+  Future<void> _disconnect() async {
+    final approved = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Disconnect WhatsApp?'),
+        content: const Text('BillDesk will stop sending automatic receipts from this cafe number. You can connect it again later.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Disconnect')),
+        ],
+      ),
+    );
+    if (approved != true || widget.store.disconnectWhatsApp == null) return;
+    setState(() => _working = true);
+    try {
+      final result = await widget.store.disconnectWhatsApp!();
+      if (mounted) setState(() => _status = result);
+    } catch (e) {
+      if (mounted) setState(() => _problem = errorText(e));
+    } finally {
+      if (mounted) setState(() => _working = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isConnected = _status?['connected'] == true;
+    final expiryText = DateTime.tryParse('${_status?['tokenExpiresAt'] ?? ''}')?.toLocal();
+    return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Panel(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              const Icon(Icons.chat_outlined, color: Color(0xFF16A34A)),
+              const SizedBox(width: 10),
+              const Expanded(child: Text('WhatsApp Business Connection', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700))),
+              Chip(label: Text(_loading ? 'Checking…' : isConnected ? 'Connected' : 'Not connected'), avatar: Icon(Icons.circle, size: 10, color: isConnected ? const Color(0xFF16A34A) : Colors.grey)),
+            ]),
+            const SizedBox(height: 10),
+            Text(isConnected
+                ? 'This cafe sends automatic receipts from ${_status?['phone'] ?? 'its connected WhatsApp number'}.'
+                : 'Connect the cafe’s own WhatsApp Business account. After Meta authorization, BillDesk can send consented receipts even when the owner is not logged in.', style: const TextStyle(color: muted, height: 1.6)),
+            if (isConnected) ...[
+              const SizedBox(height: 14),
+              Text('Sender: ${_status?['phone'] ?? 'WhatsApp Business'}${(_status?['businessName'] ?? '').toString().isNotEmpty ? ' · ${_status?['businessName']}' : ''}', style: const TextStyle(fontWeight: FontWeight.w600)),
+              if (expiryText != null) ...[
+                const SizedBox(height: 6),
+                Text('Meta access expires: ${MaterialLocalizations.of(context).formatMediumDate(expiryText)}. Reconnect before then.', style: const TextStyle(color: Color(0xFF9A6700), height: 1.4)),
+              ],
+            ],
+            if (_problem != null) ...[
+              const SizedBox(height: 12),
+              Text(_problem!, style: const TextStyle(color: Color(0xFFB42318), height: 1.4)),
+            ],
+            const SizedBox(height: 16),
+            Wrap(spacing: 10, runSpacing: 8, children: [
+              if (widget.store.connectWhatsApp != null && !isConnected)
+                FilledButton.icon(onPressed: _working ? null : _connect, icon: _working ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(Icons.link), label: Text(_working ? 'Connecting…' : 'Connect with Meta'), style: FilledButton.styleFrom(backgroundColor: const Color(0xFF16A34A), foregroundColor: Colors.white)),
+              if (isConnected && widget.store.disconnectWhatsApp != null)
+                OutlinedButton.icon(onPressed: _working ? null : _disconnect, icon: const Icon(Icons.link_off), label: const Text('Disconnect')),
+              if (widget.store.loadWhatsAppStatus != null)
+                TextButton.icon(onPressed: _loading ? null : _load, icon: const Icon(Icons.refresh), label: const Text('Refresh status')),
+            ]),
+            if (widget.store.connectWhatsApp == null)
+              const Text('This is the local Version 1 build, so WhatsApp connection is unavailable here. Open the deployed Version 2 BillDesk app: web browsers use Meta signup, while the Android/iOS app opens the device browser and returns here after authorization.', style: TextStyle(fontSize: 12, color: muted, height: 1.5)),
+          ],
+        ),
+      ),
+      const SizedBox(height: 18),
+      Panel(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text('Connection flow', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 12),
+          for (final step in const [
+            'Choose an existing WhatsApp Business account.',
+            'Authorize and verify through Meta Coexistence.',
+            'The backend receives the WhatsApp Business Account ID and Phone Number ID.',
+            'The backend stores the connection securely for this café.',
+            'Paid orders with recorded customer consent generate a PDF invoice for delivery.',
+            'Meta webhook updates change the invoice delivery status.',
+          ])
+            Padding(padding: const EdgeInsets.only(bottom: 10), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [const Icon(Icons.check_circle_outline, size: 18, color: Color(0xFF16A34A)), const SizedBox(width: 10), Expanded(child: Text(step, style: const TextStyle(height: 1.45, color: ink)))])),
+        ]),
+      ),
+    ],
+    );
+  }
+}
 
 class _ProfileTab extends StatefulWidget {
   final CafeStore store;

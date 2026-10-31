@@ -32,6 +32,7 @@ class _PosPageState extends State<PosPage> {
   int activeTab = 0;
   bool saving = false;
   bool dirty = false;
+  bool invoiceConsent = false;
   int discount = 0;
   late int selectedTemplate;
   int get subtotal => cart.values.fold(0, (sum, line) => sum + line.total);
@@ -57,6 +58,7 @@ class _PosPageState extends State<PosPage> {
       table.text = old.table;
       service = old.service;
       discount = old.discount;
+      invoiceConsent = old.invoiceConsent;
     }
   }
 
@@ -273,6 +275,10 @@ class _PosPageState extends State<PosPage> {
       return;
     }
     FocusScope.of(context).unfocus();
+    if (pay && !invoiceConsent) {
+      toast(context, 'Record the customer’s consent before sending an invoice on WhatsApp.');
+      return;
+    }
     final method = pay
         ? await paymentDialog(
             context,
@@ -303,11 +309,12 @@ class _PosPageState extends State<PosPage> {
                 table: table.text,
                 paymentMethod: method,
                 discount: discount,
+                invoiceConsent: invoiceConsent,
               )
               .id;
         } else {
           savedId = old.id;
-          data.updateCustomer(old.id, nameVal, phoneVal);
+          data.updateCustomer(old.id, nameVal, phoneVal, invoiceConsent: invoiceConsent);
           data.updateLines(old.id, cart.values.toList(), discount: discount);
           if (method != null) {
             data.recordPayment(old.id, method, DateTime.now());
@@ -325,7 +332,7 @@ class _PosPageState extends State<PosPage> {
           );
         } catch (_) {}
 
-        if (mounted && pdfBytes != null) {
+        if (mounted && pdfBytes != null && !widget.store.automaticWhatsApp) {
           // Immediately trigger direct PDF file share via SharePlus (shares actual .pdf document to WhatsApp)
           final file = XFile.fromData(
             pdfBytes,
@@ -401,7 +408,11 @@ class _PosPageState extends State<PosPage> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    SizedBox(
+                    if (widget.store.automaticWhatsApp) ...[
+                      const Text('BillDesk is submitting the receipt through this cafe’s connected WhatsApp Business number. You can close this window; delivery status is available in the order details.', style: TextStyle(color: Color(0xFF166534), height: 1.5)),
+                      const SizedBox(height: 12),
+                    ],
+                    if (!widget.store.automaticWhatsApp) SizedBox(
                       width: double.infinity,
                       child: FilledButton.icon(
                         style: FilledButton.styleFrom(
@@ -436,8 +447,8 @@ class _PosPageState extends State<PosPage> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 10),
-                    SizedBox(
+                    if (!widget.store.automaticWhatsApp) const SizedBox(height: 10),
+                    if (!widget.store.automaticWhatsApp) SizedBox(
                       width: double.infinity,
                       child: OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(
@@ -1046,6 +1057,17 @@ class _PosPageState extends State<PosPage> {
                 prefixText: '+91 ',
                 errorText: phoneError,
               ),
+            ),
+            CheckboxListTile(
+              value: invoiceConsent,
+              onChanged: saving ? null : (value) => setState(() {
+                invoiceConsent = value ?? false;
+                dirty = true;
+              }),
+              contentPadding: EdgeInsets.zero,
+              controlAffinity: ListTileControlAffinity.leading,
+              title: const Text('Customer agrees to receive the invoice on WhatsApp', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+              subtitle: const Text('Record consent before sending. Required for WhatsApp invoice delivery.', style: TextStyle(fontSize: 11, color: muted)),
             ),
             const SizedBox(height: 20),
             Container(

@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Connect WhatsApp to BillDesk</title>
+  <style>
+    body { font: 16px system-ui, sans-serif; color: #17241b; margin: 0; background: #f4f8f4; }
+    main { max-width: 520px; margin: 10vh auto; padding: 28px; background: white; border-radius: 18px; box-shadow: 0 12px 40px #16321b14; }
+    h1 { font-size: 22px; } p { line-height: 1.55; color: #526154; }
+    button { border: 0; background: #128c4a; color: white; border-radius: 10px; padding: 12px 18px; font-weight: 700; cursor: pointer; }
+    #error { color: #b42318; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Connect your cafe’s WhatsApp</h1>
+    <p>Meta will ask you to choose the cafe’s WhatsApp Business account and authorize BillDesk. BillDesk never receives your Meta password.</p>
+    <p id="status">Loading Meta’s secure signup…</p>
+    <p id="error" role="alert"></p>
+    <button id="continue" hidden>Continue with Facebook</button>
+    <button id="retry" hidden>Try again</button>
+  </main>
+  <script>
+    (() => {
+      const params = new URLSearchParams(location.search);
+      const appId = params.get('appId') || '';
+      const configId = params.get('configId') || '';
+      const signupState = params.get('state') || '';
+      const returnScheme = params.get('returnScheme') || '';
+      const parentOrigin = params.get('parentOrigin') || location.origin;
+      const status = document.getElementById('status');
+      const errorBox = document.getElementById('error');
+      const continueButton = document.getElementById('continue');
+      const retry = document.getElementById('retry');
+      let code = '';
+      let signupData = null;
+      let done = false;
+
+      function notifyParent(payload) {
+        if (done) return;
+        done = true;
+        if (window.opener && !window.opener.closed) {
+          window.opener.postMessage(JSON.stringify({ source: 'billdesk-whatsapp-signup', ...payload }), parentOrigin);
+        } else if (returnScheme === 'billdesk' && signupState) {
+          const callback = new URL('billdesk://whatsapp-connect');
+          for (const [key, value] of Object.entries({ ...payload, state: signupState })) {
+            if (value !== undefined && value !== null) callback.searchParams.set(key, String(value));
+          }
+          location.href = callback.toString();
+          status.textContent = payload.error ? 'Signup did not finish. Return to BillDesk.' : 'Signup complete. Returning to BillDesk…';
+          return;
+        }
+        status.textContent = payload.error ? 'Signup did not finish.' : 'WhatsApp connected. You can close this window.';
+        setTimeout(() => window.close(), 700);
+      }
+
+      function maybeComplete() {
+        if (code && signupData) {
+          notifyParent({ code, wabaId: signupData.wabaId, phoneNumberId: signupData.phoneNumberId || '' });
+        }
+      }
+
+      window.addEventListener('message', (event) => {
+        if (!['https://www.facebook.com', 'https://web.facebook.com'].includes(event.origin)) return;
+        let data;
+        try { data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data; }
+        catch (_) { return; }
+        if (!data || data.type !== 'WA_EMBEDDED_SIGNUP') return;
+        if (data.event === 'CANCEL') return notifyParent({ error: 'You cancelled WhatsApp signup.' });
+        if (data.event === 'ERROR') return notifyParent({ error: data.data?.error_message || 'Meta could not complete signup.' });
+        if (!['FINISH', 'FINISH_ONLY_WABA', 'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING'].includes(data.event)) return;
+        signupData = {
+          wabaId: data.data?.waba_id || data.data?.whatsapp_business_account_id || '',
+          phoneNumberId: data.data?.phone_number_id || '',
+        };
+        maybeComplete();
+      });
+
+      window.fbAsyncInit = function () {
+        FB.init({ appId, cookie: true, xfbml: false, version: 'v25.0' });
+        status.textContent = 'Ready. Click below to securely continue to Meta.';
+        continueButton.hidden = false;
+      };
+
+      continueButton.addEventListener('click', () => {
+        continueButton.disabled = true;
+        continueButton.textContent = 'Opening Meta…';
+        status.textContent = 'Opening Meta signup…';
+        FB.login((response) => {
+          const auth = response?.authResponse;
+          if (!auth?.code) return notifyParent({ error: 'Meta did not return an authorization code. Please try again.' });
+          code = auth.code;
+          status.textContent = 'Finishing WhatsApp account setup…';
+          maybeComplete();
+        }, {
+          config_id: configId,
+          response_type: 'code',
+          override_default_response_type: true,
+          // Current Embedded Signup configurations define the WhatsApp product
+          // in Meta's configuration; avoid the retired v2/v3 featureType flag.
+          extras: { setup: {} },
+        });
+      });
+
+      retry.addEventListener('click', () => location.reload());
+      if (!appId || !configId) {
+        status.textContent = 'This BillDesk deployment is missing its Meta signup configuration.';
+      } else {
+        const sdk = document.createElement('script');
+        sdk.async = true; sdk.defer = true; sdk.crossOrigin = 'anonymous';
+        sdk.src = 'https://connect.facebook.net/en_US/sdk.js';
+        sdk.onerror = () => { status.textContent = 'Meta signup could not load. Check your connection and retry.'; retry.hidden = false; };
+        document.head.appendChild(sdk);
+      }
+    })();
+  </script>
+</body>
+</html>
