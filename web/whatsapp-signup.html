@@ -36,10 +36,12 @@
       let code = '';
       let signupData = null;
       let done = false;
+      let sessionTimeout = null;
 
       function notifyParent(payload) {
         if (done) return;
         done = true;
+        if (sessionTimeout) clearTimeout(sessionTimeout);
         if (window.opener && !window.opener.closed) {
           window.opener.postMessage(JSON.stringify({ source: 'billdesk-whatsapp-signup', ...payload }), parentOrigin);
         } else if (returnScheme === 'billdesk' && signupState) {
@@ -77,8 +79,8 @@
         if (data.event === 'ERROR') return notifyParent({ error: data.data?.error_message || 'Meta could not complete signup.' });
         if (!['FINISH', 'FINISH_ONLY_WABA', 'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING'].includes(data.event)) return;
         signupData = {
-          wabaId: data.data?.waba_id || data.data?.whatsapp_business_account_id || '',
-          phoneNumberId: data.data?.phone_number_id || '',
+          wabaId: data.data?.waba_id || data.data?.whatsapp_business_account_id || data.data?.wabaId || '',
+          phoneNumberId: data.data?.phone_number_id || data.data?.phoneNumberId || '',
         };
         maybeComplete();
       });
@@ -98,9 +100,17 @@
           if (!auth?.code) return notifyParent({ error: 'Meta did not return an authorization code. Please try again.' });
           code = auth.code;
           status.textContent = 'Finishing WhatsApp account setup…';
+          // Meta login can succeed without completing Embedded Signup (for
+          // example, if the Login for Business configuration is not the
+          // WhatsApp signup configuration). Do not leave the vendor spinning
+          // for Flutter's much longer overall timeout in that case.
+          sessionTimeout = setTimeout(() => {
+            notifyParent({ error: 'Facebook login succeeded, but Meta did not return WhatsApp account details. The selected Meta configuration did not complete Embedded Signup. Check that this configuration is for WhatsApp Embedded Signup, includes the WhatsApp account asset and required WhatsApp permissions, and supports WhatsApp Business App onboarding. No WhatsApp connection was saved.' });
+          }, 45000);
           maybeComplete();
         }, {
           config_id: configId,
+          auth_type: 'rerequest',
           response_type: 'code',
           override_default_response_type: true,
           // The cafe wants to link an existing WhatsApp Business App number
