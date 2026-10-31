@@ -4,7 +4,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { createWriteStream } from 'node:fs';
 import { pipeline } from 'node:stream/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 
 const run = promisify(execFile);
 const root = process.cwd();
@@ -29,6 +29,11 @@ try {
   }
 
   const common = { cwd: root, maxBuffer: 20 * 1024 * 1024 };
+  // Vercel's build image can run as root while the extracted Flutter Git
+  // checkout has a different owner. Git then blocks Flutter's version checks
+  // as a dubious-ownership repository. Trust only this SDK checkout.
+  const flutterRoot = dirname(dirname(flutter));
+  await run('git', ['config', '--global', '--add', 'safe.directory', flutterRoot], common);
   await run(flutter, ['pub', 'get'], common);
   await run(flutter, [
     'build', 'web', '--release',
