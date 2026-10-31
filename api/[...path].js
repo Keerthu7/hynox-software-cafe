@@ -83,6 +83,7 @@ async function paidCatalog(sql, user) {
 async function insertShop(sql, values, slug) {
   const now = new Date();
   const state = {
+    schemaVersion: 1,
     businessName: String(values.name || 'My Café'),
     profile: { phone: String(values.phone || ''), address: String(values.address || '') },
     trialStartedAt: now.toISOString(),
@@ -163,7 +164,10 @@ async function handle(req, res) {
     if (user.role !== 'vendor') return json(res, 403, { error: 'This account cannot access a café workspace.' });
     const [shop] = await sql`SELECT state, revision FROM hynox_shops WHERE id = ${user.shop_id} LIMIT 1`;
     if (!shop) return json(res, 404, { error: 'Vendor workspace not found.' });
-    return json(res, 200, { state: shop.state, revision: shop.revision });
+    // Older vendor rows may predate the schemaVersion field. Normalize them
+    // while loading so those workspaces can open without losing their data.
+    const state = { schemaVersion: 1, ...shop.state };
+    return json(res, 200, { state, revision: shop.revision });
   }
 
   if (path === '/state' && req.method === 'POST') {
