@@ -69,6 +69,42 @@ class _TeamWorkspaceState extends State<TeamWorkspace> {
     );
   }
 
+  Future<void> deleteVendor(dynamic vendor) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete vendor?'),
+        content: Text(
+          'Delete ${vendor['name']} and permanently remove its workspace, orders, subscription, and WhatsApp connection?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete vendor'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => loading = true);
+    try {
+      final result = await widget.request('/api/admin-vendor-delete', {
+        'slug': vendor['slug'],
+      });
+      if (mounted) setState(() => data = result);
+      if (mounted) toast(context, 'Vendor deleted.');
+    } catch (e) {
+      if (mounted) toast(context, errorText(e));
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
+  }
+
   Widget navigation(bool drawer) {
     final activeTheme = getActiveTheme();
     return SizedBox(
@@ -342,6 +378,16 @@ class _TeamWorkspaceState extends State<TeamWorkspace> {
                 ),
                 icon: const Icon(Icons.edit_outlined, size: 18),
                 label: const Text('Edit vendor'),
+              ),
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.red,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                onPressed: loading ? null : () => deleteVendor(v),
+                icon: const Icon(Icons.delete_outline, size: 18),
+                label: const Text('Delete vendor'),
               ),
             ],
           ),
@@ -832,8 +878,8 @@ class _TeamEditorState extends State<TeamEditor> {
         if (key == 'confirm' && v != fields['password']!.text) {
           return 'Passwords do not match';
         }
-        if (key == 'password' && v!.length < 4) {
-          return 'Use at least 4 characters';
+        if (key == 'password' && v!.isNotEmpty && v.length < 8) {
+          return 'Use at least 8 characters';
         }
         if (key == 'price' && parseRupees(v ?? '') == null) {
           return 'Enter a valid price';
@@ -857,7 +903,7 @@ class _TeamEditorState extends State<TeamEditor> {
           'address',
           'phone',
           'email',
-          if (!editing) 'password',
+          if (!editing || fields['password']!.text.isNotEmpty) 'password',
         ],
         'plan' => ['name'],
         'profile' => ['name', 'email', 'contactPhone'],
@@ -918,7 +964,6 @@ class _TeamEditorState extends State<TeamEditor> {
                     'phone',
                     'Login mobile number',
                     phone: true,
-                    enabled: !editing,
                   ),
                   field('email', 'Email', optional: true),
                   if (!editing) ...[
@@ -927,6 +972,21 @@ class _TeamEditorState extends State<TeamEditor> {
                       'confirm',
                       'Confirm password',
                       secret: true,
+                      maximum: 128,
+                    ),
+                  ] else ...[
+                    field(
+                      'password',
+                      'New password (leave blank to keep current)',
+                      secret: true,
+                      optional: true,
+                      maximum: 128,
+                    ),
+                    field(
+                      'confirm',
+                      'Confirm new password',
+                      secret: true,
+                      optional: true,
                       maximum: 128,
                     ),
                   ],

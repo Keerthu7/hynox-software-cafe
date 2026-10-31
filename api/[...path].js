@@ -115,6 +115,7 @@ async function handle(req, res) {
     '/admin-subscription': '/admin/subscription',
     '/admin-profile': '/admin/profile',
     '/admin-subscription-accept': '/admin/subscription/accept',
+    '/admin-vendor-delete': '/admin/vendor/delete',
     '/subscription-request': '/subscription/request',
     '/subscription-pay': '/subscription/pay',
     '/whatsapp-config': '/whatsapp/config',
@@ -248,6 +249,22 @@ async function handle(req, res) {
       const shopId = String(values.slug);
       const [shop] = await sql`SELECT id FROM hynox_shops WHERE id = ${shopId} LIMIT 1`;
       if (!shop) return json(res, 404, { error: 'Vendor not found.' });
+      const [vendor] = await sql`SELECT phone FROM hynox_users WHERE shop_id = ${shopId} AND role = 'vendor' LIMIT 1`;
+      if (!vendor) return json(res, 404, { error: 'Vendor login account not found.' });
+      if (vendor.phone !== phone) {
+        const [existingPhone] = await sql`SELECT phone FROM hynox_users WHERE phone = ${phone} LIMIT 1`;
+        if (existingPhone) return json(res, 409, { error: 'This mobile number already belongs to another account.' });
+        await sql`DELETE FROM hynox_sessions WHERE phone = ${vendor.phone}`;
+        await sql`UPDATE hynox_users SET phone = ${phone} WHERE phone = ${vendor.phone} AND shop_id = ${shopId}`;
+      }
+      if (values.password) {
+        if (String(values.password).length < 8) return json(res, 400, { error: 'Use at least 8 characters for a new vendor password.' });
+        const salt = crypto.randomBytes(16).toString('hex');
+        const passwordHash = await hashPassword(String(values.password), salt);
+        await sql`DELETE FROM hynox_sessions WHERE phone = ${phone}`;
+        await sql`UPDATE hynox_users SET password_salt = ${salt}, password_hash = ${passwordHash}
+          WHERE phone = ${phone} AND shop_id = ${shopId}`;
+      }
       await sql`UPDATE hynox_shops SET name = ${String(values.name || '')}, address = ${String(values.address || '')},
         state = jsonb_set(jsonb_set(state, '{businessName}', to_jsonb(${String(values.name || '')}::text)),
         '{profile,address}', to_jsonb(${String(values.address || '')}::text), true) WHERE id = ${shopId}`;
@@ -264,6 +281,19 @@ async function handle(req, res) {
     const passwordHash = await hashPassword(String(values.password), salt);
     await sql`INSERT INTO hynox_users (phone, role, shop_id, password_salt, password_hash, owner_name, email)
       VALUES (${phone}, 'vendor', ${shopId}, ${salt}, ${passwordHash}, ${String(values.owner || '')}, ${String(values.email || '')})`;
+    return json(res, 200, await adminDashboard(sql, user));
+  }
+
+  if (path === '/admin/vendor/delete' && req.method === 'POST') {
+    if (user.role !== 'team') return json(res, 403, { error: 'This action is for the Hynox team.' });
+    const shopId = String(values.slug || '');
+    const [shop] = await sql`SELECT id FROM hynox_shops WHERE id = ${shopId} LIMIT 1`;
+    if (!shop) return json(res, 404, { error: 'Vendor not found.' });
+    await sql`DELETE FROM hynox_sessions WHERE phone IN (
+      SELECT phone FROM hynox_users WHERE shop_id = ${shopId} AND role = 'vendor'
+    )`;
+    await sql`DELETE FROM hynox_users WHERE shop_id = ${shopId} AND role = 'vendor'`;
+    await sql`DELETE FROM hynox_shops WHERE id = ${shopId}`;
     return json(res, 200, await adminDashboard(sql, user));
   }
 
