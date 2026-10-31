@@ -98,8 +98,14 @@ async function insertShop(sql, values, slug) {
 async function handle(req, res) {
   await ensureSchema();
   const sql = database();
-  const pathValue = req.query.path;
-  const path = '/' + (Array.isArray(pathValue) ? pathValue.join('/') : String(pathValue || ''));
+  const pathValue = req.query?.path;
+  // Vercel's catch-all function does not populate `query.path` consistently
+  // for every deployment configuration. Fall back to the actual request URL
+  // so routes such as /api/login are still dispatched to the right handler.
+  const path = pathValue !== undefined
+    ? '/' + (Array.isArray(pathValue) ? pathValue.join('/') : String(pathValue))
+    : new URL(req.url || '/', `https://${req.headers.host || 'localhost'}`).pathname
+        .replace(/^\/api(?=\/|$)/, '') || '/';
   const values = body(req);
 
   if (path === '/health' && req.method === 'GET') return json(res, 200, { ok: true });

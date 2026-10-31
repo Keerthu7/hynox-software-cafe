@@ -421,6 +421,13 @@ class _PortalGateState extends State<PortalGate> {
                         child: Text(busy ? 'Signing in…' : 'Log in →'),
                       ),
                     ),
+                    if (api.remoteBackend) ...[
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Use the phone number and password assigned to your account. Demo quick sign-in is available only in local development.',
+                        style: TextStyle(color: muted, height: 1.5),
+                      ),
+                    ] else ...[
                     const SizedBox(height: 24),
                     const Row(
                       children: [
@@ -473,6 +480,7 @@ class _PortalGateState extends State<PortalGate> {
                         ),
                       ],
                     ),
+                    ],
                   ],
                 ),
               ),
