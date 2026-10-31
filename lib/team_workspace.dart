@@ -162,7 +162,7 @@ class _TeamWorkspaceState extends State<TeamWorkspace> {
     final planName = planMatches.isNotEmpty ? planMatches.first['name'] : 'Subscription';
     setState(() => loading = true);
     try {
-      final result = await widget.request('/api/admin/subscription/accept', {
+      final result = await widget.request('/api/admin-subscription-accept', {
         'shop': v['slug'],
         'planId': planId,
       });
@@ -879,7 +879,7 @@ class _TeamEditorState extends State<TeamEditor> {
         body['status'] = status;
         body['planId'] = plan;
       }
-      final result = await widget.request('/api/admin/${widget.kind}', body);
+      final result = await widget.request('/api/admin-${widget.kind}', body);
       widget.saved(result);
       if (mounted) Navigator.pop(context);
     } catch (e) {

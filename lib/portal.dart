@@ -52,7 +52,7 @@ class PortalApi {
       'application/json',
     )) {
       throw StateError(
-        'Start Hynox using START-HYNOS.cmd to enable the sign-in server.',
+        'BillDesk received a webpage instead of an API response. Deploy the latest version and try again.',
       );
     }
     final result = jsonDecode(response.body) as Map<String, dynamic>;
@@ -104,23 +104,23 @@ class PortalApi {
   }
 
   Future<Map<String, dynamic>> whatsappConfig() =>
-      request('/api/whatsapp/config');
+      request('/api/whatsapp-config');
 
   Future<Map<String, dynamic>> whatsappStatus() =>
-      request('/api/whatsapp/status');
+      request('/api/whatsapp-status');
 
   Future<Map<String, dynamic>> connectWhatsApp({
     required String code,
     required String wabaId,
     required String phoneNumberId,
-  }) => request('/api/whatsapp/connect', {
+  }) => request('/api/whatsapp-connect', {
     'code': code,
     'wabaId': wabaId,
     'phoneNumberId': phoneNumberId,
   });
 
   Future<Map<String, dynamic>> disconnectWhatsApp() =>
-      request('/api/whatsapp/disconnect', {});
+      request('/api/whatsapp-disconnect', {});
 
   Future<void> save(String raw) async {
     final result = await request('/api/state', {
@@ -217,12 +217,12 @@ class _PortalGateState extends State<PortalGate> {
             return res;
           },
           requestPlan: (id) async {
-            final res = await api.request('/api/subscription/request', {'planId': id});
+            final res = await api.request('/api/subscription-request', {'planId': id});
             store?.updateSubscription(res['subscription'] as Map<String, dynamic>?);
             return res;
           },
           paySubscription: (id, method) async {
-            final res = await api.request('/api/subscription/pay', {'planId': id, 'method': method});
+            final res = await api.request('/api/subscription-pay', {'planId': id, 'method': method});
             store?.updateSubscription(res['subscription'] as Map<String, dynamic>?);
             return res;
           },

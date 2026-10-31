@@ -102,10 +102,25 @@ async function handle(req, res) {
   // Vercel's catch-all function does not populate `query.path` consistently
   // for every deployment configuration. Fall back to the actual request URL
   // so routes such as /api/login are still dispatched to the right handler.
-  const path = pathValue !== undefined
+  const rawPath = pathValue !== undefined
     ? '/' + (Array.isArray(pathValue) ? pathValue.join('/') : String(pathValue))
     : new URL(req.url || '/', `https://${req.headers.host || 'localhost'}`).pathname
         .replace(/^\/api(?=\/|$)/, '') || '/';
+  // Keep API endpoints to one URL segment because Vercel's static Flutter
+  // deployment does not reliably dispatch nested paths to this catch-all.
+  const path = ({
+    '/admin-vendor': '/admin/vendor',
+    '/admin-plan': '/admin/plan',
+    '/admin-subscription': '/admin/subscription',
+    '/admin-profile': '/admin/profile',
+    '/admin-subscription-accept': '/admin/subscription/accept',
+    '/subscription-request': '/subscription/request',
+    '/subscription-pay': '/subscription/pay',
+    '/whatsapp-config': '/whatsapp/config',
+    '/whatsapp-status': '/whatsapp/status',
+    '/whatsapp-connect': '/whatsapp/connect',
+    '/whatsapp-disconnect': '/whatsapp/disconnect',
+  })[rawPath] || rawPath;
   const values = body(req);
 
   if (path === '/health' && req.method === 'GET') return json(res, 200, { ok: true });
