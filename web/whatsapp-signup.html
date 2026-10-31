@@ -103,9 +103,13 @@
           config_id: configId,
           response_type: 'code',
           override_default_response_type: true,
-          // Current Embedded Signup configurations define the WhatsApp product
-          // in Meta's configuration; avoid the retired v2/v3 featureType flag.
-          extras: { setup: {} },
+          // The cafe wants to link an existing WhatsApp Business App number
+          // while keeping the app usable (Meta Coexistence), rather than
+          // creating/migrating a Cloud API-only number.
+          extras: {
+            setup: {},
+            featureType: 'whatsapp_business_app_onboarding',
+          },
         });
       });
 
