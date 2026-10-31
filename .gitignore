@@ -56,3 +56,7 @@ server/__pycache__/
 /outputs/
 /work/
 flutter-local.ps1
+
+# Local secrets
+.env
+
