@@ -134,16 +134,15 @@
           }
           code = auth.code;
           status.textContent = 'Finishing WhatsApp account setup…';
-          // Meta login can succeed without completing Embedded Signup (for
-          // example, if the Login for Business configuration is not the
-          // WhatsApp signup configuration). Do not leave the vendor spinning
-          // for Flutter's much longer overall timeout in that case.
+          // Meta login can finish before the business completes Embedded
+          // Signup. Account selection and phone verification can take several
+          // minutes, so allow a realistic window before reporting a timeout.
           sessionTimeout = setTimeout(() => {
             const eventHint = lastSignupEvent
               ? `Meta sent signup event “${lastSignupEvent}” with fields: ${lastSignupDataKeys.join(', ') || 'none'}.`
               : 'No WhatsApp signup-completion event was received from Meta.';
-            notifyParent({ error: `Facebook login succeeded, but WhatsApp signup did not complete. ${eventHint} Finish every WhatsApp setup/consent screen in Meta. If you did finish it, confirm the deployed META_CONFIG_ID is the WhatsApp Embedded Signup configuration and that the cafe's WhatsApp account is eligible for the selected onboarding flow. No WhatsApp connection was saved.` });
-          }, 45000);
+            notifyParent({ error: `Facebook login succeeded, but WhatsApp signup did not complete within 5 minutes. ${eventHint} Finish every WhatsApp setup/consent screen in Meta. If you did finish it, confirm the deployed META_CONFIG_ID is the WhatsApp Embedded Signup configuration and that the cafe's WhatsApp account is eligible for the selected onboarding flow. No WhatsApp connection was saved.` });
+          }, 300000);
           maybeComplete();
         }, {
           config_id: configId,
