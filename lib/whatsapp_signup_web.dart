@@ -66,7 +66,10 @@ Future<Map<String, String>> launchWhatsAppSignup({
     queryParameters: {'appId': appId, 'configId': configId, 'parentOrigin': origin},
   );
   popup.location.href = signupUri.toString();
-  timeout = Timer(const Duration(minutes: 5), () {
+  // The signup page has its own five-minute timer that returns a detailed
+  // Meta/session diagnostic. Keep this parent timeout later so it cannot
+  // replace that message with a generic timeout.
+  timeout = Timer(const Duration(minutes: 6), () {
     finishError(StateError('Meta signup timed out. Please start the connection again.'));
   });
   closePoll = Timer.periodic(const Duration(milliseconds: 500), (_) {

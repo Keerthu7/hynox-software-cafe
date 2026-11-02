@@ -60,7 +60,7 @@ Future<Map<String, String>> launchWhatsAppSignup({
     cleanUp();
   });
 
-  timeout = Timer(const Duration(minutes: 5), () {
+  timeout = Timer(const Duration(minutes: 6), () {
     if (!result.isCompleted) result.completeError(StateError('WhatsApp signup timed out. Return to BillDesk and try again.'));
     cleanUp();
   });
