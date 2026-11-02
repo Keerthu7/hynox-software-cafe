@@ -37,11 +37,23 @@
       let signupData = null;
       let done = false;
       let sessionTimeout = null;
+      let loginTimeout = null;
+
+      function metaLoginError(response) {
+        const error = response?.error || {};
+        const message = String(error.message || error.error_message || '').trim();
+        const codeValue = error.code ?? error.error_code;
+        const codeText = codeValue === undefined || codeValue === null ? '' : ` (Meta error ${String(codeValue).slice(0, 24)})`;
+        const statusText = String(response?.status || '').trim();
+        const detail = message ? `${message}${codeText}` : statusText ? `Login status: ${statusText}${codeText}` : `No authorization response${codeText}`;
+        return `Meta login did not finish: ${detail}. Check the Meta App Domains and Website Site URL match, then confirm the selected Facebook Login for Business configuration is enabled for this app.`;
+      }
 
       function notifyParent(payload) {
         if (done) return;
         done = true;
         if (sessionTimeout) clearTimeout(sessionTimeout);
+        if (loginTimeout) clearTimeout(loginTimeout);
         if (window.opener && !window.opener.closed) {
           window.opener.postMessage(JSON.stringify({ source: 'billdesk-whatsapp-signup', ...payload }), parentOrigin);
         } else if (returnScheme === 'billdesk' && signupState) {
@@ -95,9 +107,25 @@
         continueButton.disabled = true;
         continueButton.textContent = 'Opening Meta…';
         status.textContent = 'Opening Meta signup…';
+        errorBox.textContent = '';
+        loginTimeout = setTimeout(() => {
+          notifyParent({ error: 'Meta did not finish the login response within 90 seconds. Close the Meta popup, verify the app domain and Site URL match, and retry. If it repeats, check the Meta app dashboard and Vercel function logs.' });
+        }, 90000);
         FB.login((response) => {
+          if (loginTimeout) clearTimeout(loginTimeout);
+          if (done) return;
           const auth = response?.authResponse;
-          if (!auth?.code) return notifyParent({ error: 'Meta did not return an authorization code. Please try again.' });
+          if (!auth?.code) {
+            // Do not log or forward the full SDK response: it may contain an
+            // access token or authorization code. Only log safe diagnostics.
+            console.warn('BillDesk Meta login did not return an authorization code.', {
+              status: String(response?.status || ''),
+              errorCode: response?.error?.code ?? response?.error?.error_code ?? null,
+              errorType: String(response?.error?.type || ''),
+              errorMessage: String(response?.error?.message || response?.error?.error_message || ''),
+            });
+            return notifyParent({ error: metaLoginError(response) });
+          }
           code = auth.code;
           status.textContent = 'Finishing WhatsApp account setup…';
           // Meta login can succeed without completing Embedded Signup (for
