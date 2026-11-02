@@ -38,6 +38,8 @@
       let done = false;
       let sessionTimeout = null;
       let loginTimeout = null;
+      let lastSignupEvent = '';
+      let lastSignupDataKeys = [];
 
       function metaLoginError(response) {
         const error = response?.error || {};
@@ -87,6 +89,10 @@
         try { data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data; }
         catch (_) { return; }
         if (!data || data.type !== 'WA_EMBEDDED_SIGNUP') return;
+        lastSignupEvent = String(data.event || 'unknown').slice(0, 64);
+        lastSignupDataKeys = data.data && typeof data.data === 'object'
+          ? Object.keys(data.data).filter((key) => /^[a-zA-Z0-9_]{1,48}$/.test(key)).slice(0, 12)
+          : [];
         if (data.event === 'CANCEL') return notifyParent({ error: 'You cancelled WhatsApp signup.' });
         if (data.event === 'ERROR') return notifyParent({ error: data.data?.error_message || 'Meta could not complete signup.' });
         if (!['FINISH', 'FINISH_ONLY_WABA', 'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING'].includes(data.event)) return;
@@ -133,7 +139,10 @@
           // WhatsApp signup configuration). Do not leave the vendor spinning
           // for Flutter's much longer overall timeout in that case.
           sessionTimeout = setTimeout(() => {
-            notifyParent({ error: 'Facebook login succeeded, but Meta did not return WhatsApp account details. The selected Meta configuration did not complete Embedded Signup. Check that this configuration is for WhatsApp Embedded Signup, includes the WhatsApp account asset and required WhatsApp permissions, and supports WhatsApp Business App onboarding. No WhatsApp connection was saved.' });
+            const eventHint = lastSignupEvent
+              ? `Meta sent signup event “${lastSignupEvent}” with fields: ${lastSignupDataKeys.join(', ') || 'none'}.`
+              : 'No WhatsApp signup-completion event was received from Meta.';
+            notifyParent({ error: `Facebook login succeeded, but WhatsApp signup did not complete. ${eventHint} Finish every WhatsApp setup/consent screen in Meta. If you did finish it, confirm the deployed META_CONFIG_ID is the WhatsApp Embedded Signup configuration and that the cafe's WhatsApp account is eligible for the selected onboarding flow. No WhatsApp connection was saved.` });
           }, 45000);
           maybeComplete();
         }, {
